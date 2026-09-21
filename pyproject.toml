@@ -49,7 +49,11 @@ allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["mlx: small real Spark architecture tests; requires MLX", "integration: requires downloaded Spark weights"]
+markers = [
+  "mlx: small real Spark architecture tests; requires MLX",
+  "integration: requires downloaded Spark weights",
+  "llama: real llama.cpp library and a GGUF checkpoint; opt in with RIZZO_LLAMA_TEST=1",
+]
 
 [tool.ruff]
 line-length = 100
