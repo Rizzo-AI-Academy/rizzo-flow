@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,6 +41,61 @@ def identify(config: dict) -> ModelSpec:
         f"Unrecognized Spark2.5 checkpoint (hidden_size={config.get('hidden_size')}); "
         f"supported sizes: {', '.join(MODELS)}"
     )
+
+
+# --- llama.cpp backend: pinned GGUF artifacts ---------------------------------------------
+# The GGUF is a third-party conversion of the pinned original weights, so both provenance
+# layers are recorded: the model identity comes from `MODELS`, the artifact from here.
+MODEL_DIR_ENV = "RIZZO_MODEL_DIR"
+
+
+@dataclass(frozen=True)
+class GgufSpec:
+    size: str
+    repo: str
+    revision: str
+    file: str
+    sha256: str
+    quant: str
+
+
+GGUF_MODELS = {
+    spec.quant: spec
+    for spec in (
+        GgufSpec(
+            "4b",
+            "stornic56/Spark-X2.5-4B-GGUF",
+            "7ce72e5cba148e5e4bcd0ff0e59c8268f9820619",
+            "Spark-X2.5-4B-Q8_0.gguf",
+            "092a263df8c891cdddd98b14b9ed71e44bb84643049fbfe656fb682b71d316c6",
+            "q8_0",
+        ),
+        GgufSpec(
+            "4b",
+            "stornic56/Spark-X2.5-4B-GGUF",
+            "7ce72e5cba148e5e4bcd0ff0e59c8268f9820619",
+            "Spark-X2.5-4B-bf16.gguf",
+            "2ff41881527d095dbc02fe0c9b8e6ecd221dfe28b242d1f03dc5592d1b39fbb2",
+            "bf16",
+        ),
+    )
+}
+
+
+def model_dir() -> Path:
+    """Where GGUF checkpoints live; `RIZZO_MODEL_DIR` overrides the in-repo `models/`."""
+    return Path(os.environ.get(MODEL_DIR_ENV, "models"))
+
+
+def gguf_path(quant: str) -> Path:
+    if quant not in GGUF_MODELS:
+        raise ValueError(f"Unknown quant {quant}; available: {', '.join(GGUF_MODELS)}")
+    return model_dir() / GGUF_MODELS[quant].file
+
+
+def find_gguf_pin(filename: str) -> GgufSpec | None:
+    """Match a local GGUF file name back to its pinned artifact, for provenance."""
+    return next((spec for spec in GGUF_MODELS.values() if spec.file == filename), None)
 
 
 def download_model(destination=None, size=DEFAULT_SIZE):

@@ -243,6 +243,8 @@ class _Lib:
             "llama_free": (None, [ctypes.c_void_p]),
             "llama_model_get_vocab": (ctypes.c_void_p, [ctypes.c_void_p]),
             "llama_model_n_ctx_train": (ctypes.c_int32, [ctypes.c_void_p]),
+            "llama_model_ftype": (ctypes.c_int, [ctypes.c_void_p]),
+            "llama_ftype_name": (ctypes.c_char_p, [ctypes.c_int]),
             "llama_model_size": (ctypes.c_uint64, [ctypes.c_void_p]),
             "llama_model_desc": (
                 ctypes.c_int32,
@@ -251,6 +253,15 @@ class _Lib:
             "llama_model_meta_val_str": (
                 ctypes.c_int32,
                 [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t],
+            ),
+            "llama_model_meta_count": (ctypes.c_int32, [ctypes.c_void_p]),
+            "llama_model_meta_key_by_index": (
+                ctypes.c_int32,
+                [ctypes.c_void_p, ctypes.c_int32, ctypes.c_char_p, ctypes.c_size_t],
+            ),
+            "llama_model_meta_val_str_by_index": (
+                ctypes.c_int32,
+                [ctypes.c_void_p, ctypes.c_int32, ctypes.c_char_p, ctypes.c_size_t],
             ),
             "llama_model_chat_template": (ctypes.c_char_p, [ctypes.c_void_p, ctypes.c_char_p]),
             "llama_vocab_n_tokens": (ctypes.c_int32, [ctypes.c_void_p]),
@@ -483,6 +494,23 @@ class LlamaRuntime:
             return None
         return buffer.value.decode("utf-8")
 
+    def metadata(self) -> dict[str, str]:
+        """Every GGUF key/value pair as text; used for the runtime identity and diagnostics."""
+        result = {}
+        count = int(self._lib.llama_model_meta_count(self._model))
+        for index in range(count):
+            key_buffer = ctypes.create_string_buffer(256)
+            if (
+                self._lib.llama_model_meta_key_by_index(
+                    self._model, index, key_buffer, len(key_buffer)
+                )
+                < 0
+            ):
+                continue
+            key = key_buffer.value.decode("utf-8")
+            result[key] = self.meta(key) or ""
+        return result
+
     @property
     def architecture(self) -> str | None:
         return self.meta("general.architecture")
@@ -490,6 +518,12 @@ class LlamaRuntime:
     @property
     def file_type(self) -> str | None:
         return self.meta("general.file_type")
+
+    @property
+    def file_type_name(self) -> str:
+        """Canonical quantization name from the library, e.g. `Q8_0` or `BF16`."""
+        name = self._lib.llama_ftype_name(self._lib.llama_model_ftype(self._model))
+        return (name or b"unknown").decode("utf-8")
 
     @property
     def description(self) -> str:
