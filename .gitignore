@@ -221,7 +221,10 @@ __marimo__/
 models/
 .research/
 .cache/
-results/local-*/
+# Local runs, files or directories: `rizzo evaluate --output results/local-x` writes a file,
+# `scripts/validate_*.py --output results/local-x` writes a directory. No trailing slash, so
+# both are covered — with one, only directories match and local reports leak into commits.
+results/local-*
 .DS_Store
 
 # Local planning artifacts (deliberately not versioned)

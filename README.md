@@ -17,7 +17,8 @@
 <p>
 <img src="https://img.shields.io/badge/models-Spark--X2.5%204B%20·%201.7B-blue" alt="Spark-X2.5 4B and 1.7B" />
 <img src="https://img.shields.io/badge/native%20context-1M%20tokens-blue" alt="1M-token native context" />
-<img src="https://img.shields.io/badge/runtime-MLX%20·%20Metal%20%7C%20CUDA%20%7C%20CPU-blue" alt="MLX on Metal, CUDA or CPU" />
+<img src="https://img.shields.io/badge/runtimes-MLX%20·%20llama.cpp-blue" alt="MLX and llama.cpp runtimes" />
+<img src="https://img.shields.io/badge/GPU-Metal%20·%20CUDA%20·%20Vulkan%20%7C%20HIP%20·%20CPU-blue" alt="Metal, CUDA, Vulkan or HIP, CPU" />
 <img src="https://img.shields.io/badge/latency-~250%20ms%20%2F%20decision%20(Q8%2C%20M4%20Pro)-brightgreen" alt="about 250 ms per decision" />
 <img src="https://img.shields.io/badge/memory-~5%20GiB%20(Q8)-brightgreen" alt="about 5 GiB at 8 bit" />
 <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0 license" />
@@ -81,7 +82,8 @@ flowchart LR
    full-attention and the sliding-window caches. Question suffixes run in padded micro-batches.
 3. **Only the needed logits are computed.** The last hidden state is multiplied by just the
    vocabulary rows of the allowed letters — also with quantized weights. Verified identical to the
-   full-vocabulary projection.
+   full-vocabulary projection. *(MLX stack; the llama.cpp backend projects the full vocabulary and
+   offers no such optimisation — see [Known limitations](#known-limitations).)*
 4. **Plain Python turns logits into typed output.** Softmax, optional temperature, expected values
    for scores and numbers, abstention policy, and a schema-validated JSON response.
 
@@ -198,10 +200,13 @@ Pro at 8 bit), not 8 full passes.
 Rizzo Flow runs [**XHToken/Spark-X2.5-4B**](https://huggingface.co/XHToken/Spark-X2.5-4B) by
 default, or the smaller [**Spark-X2.5-1.7B**](https://huggingface.co/XHToken/Spark-X2.5-1.7B)
 (both Apache-2.0). The model handles up to **1M tokens** (1,048,576, native). Out of the box a
-question (state + question) is limited to **8,192 tokens**; raise it with `--ctx` — it is a
-guard, not a memory reservation. Beyond ~60k tokens also raise the 256 KB `state` cap in
-`schema.py`. Budget ~36 KiB of cache per token on the 4B (× `--batch-size`), and note that we
-have only measured states up to ~2,000 tokens. Oversized inputs are rejected, never truncated.
+question (state + question) is limited to **8,192 tokens**; raise it with `--ctx`. On the MLX stack
+`--ctx` is a guard, not a memory reservation. On llama.cpp it **is** a reservation: prefix
+branching duplicates the KV cache, so the backend asks for `ctx × (batch-size + 1)` tokens and
+refuses the request if the context it gets back per sequence is smaller. Beyond ~60k tokens also
+raise the 256 KB `state` cap in `schema.py`. Budget ~36 KiB of cache per token on the 4B
+(× `--batch-size`), and note that we have only measured states up to ~2,000 tokens. Oversized
+inputs are rejected, never truncated.
 
 | Input context | Rizzo Flow | Jev (TypeSafe) | SemIf |
 | --- | ---: | ---: | ---: |
@@ -216,9 +221,10 @@ Sources: [TypeSafe models](https://docs.typesafe.ai/models),
 ## Quickstart
 
 Rizzo Flow runs on macOS, Windows and Linux. You need Python ≥ 3.11, git and
-[uv](https://docs.astral.sh/uv/). **The only platform-specific step is the install**: you pick one
-compute backend (`mlx`, `cuda` or `cpu`) and activate the environment. From step 2 onwards every
-command is identical on every system, and the backend is detected automatically.
+[uv](https://docs.astral.sh/uv/). There are two runtimes — **MLX** (Metal on Apple Silicon, CUDA on
+NVIDIA) and **llama.cpp** (Vulkan or HIP on AMD and Intel, CUDA on NVIDIA, plain CPU anywhere) —
+and `--backend auto` picks between them from the hardware it finds. **Install is the only
+platform-specific step**: from step 2 onwards every command is identical, whichever stack answered.
 
 **1 · Install — copy the block for your machine**
 
@@ -260,6 +266,28 @@ source .venv/bin/activate
 ```
 </details>
 
+<details open>
+<summary><b>🐧 Linux — AMD GPU (Radeon), and Intel or any other llama.cpp GPU</b></summary>
+
+MLX has no AMD backend, so these cards run on **llama.cpp**: build it once with Vulkan and point
+Rizzo Flow at the build. `spark2_5` is upstream since
+[PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868) — no fork needed; this project pins
+v0.4.1 and the `stornic56` Q8_0 GGUF by sha256.
+
+```bash
+git clone https://github.com/Rizzo-AI-Academy/rizzo-flow
+cd rizzo-flow
+uv sync --locked --extra llama
+source .venv/bin/activate
+export RIZZO_LLAMA_LIB=/path/to/llama.cpp/build/bin     # the build holding libggml-vulkan.so
+export RIZZO_MODEL_DIR=/path/to/model-cache            # optional; default ./models
+rizzo download --format gguf --quant q8_0              # 4.4 GB, sha256 verified
+```
+
+Build flags and apt prerequisites (`glslc`, `libvulkan-dev`, `spirv-headers`, `glslang-tools`):
+[docs/llama-amd.md](docs/llama-amd.md).
+</details>
+
 <details>
 <summary><b>🐢 Windows or Linux without a GPU (CPU only — very slow, last resort)</b></summary>
 
@@ -269,53 +297,62 @@ Same as above with `uv sync --locked --extra cpu`. See the status table before c
 Check what was detected — this works the same everywhere:
 
 ```bash
-rizzo devices        # → "available": ["cuda", "cpu"], "auto_selects": "cuda"   (or mlx / cpu)
+rizzo devices        # the hardware present, the stacks installed, and what `auto` would pick
 ```
+
+```json
+{
+  "hardware": ["amd", "cpu"],
+  "available": ["llama"],
+  "llama": {"present": true, "ggml_backends": ["vulkan"], "devices": ["auto", "gpu", "cuda", "vulkan", "hip", "cpu"]},
+  "mlx": {"available": false},
+  "auto": {"backend": "llama", "device": "vulkan", "reason": "amd via llama", "downgraded": false}
+}
+```
+
+On a Mac the same command reports `"hardware": ["apple", "cpu"]`, `mlx.available: true` and
+`"auto": {"backend": "mlx", "device": "mlx", …}`. It is the one command that tells you, before
+loading gigabytes, which stack is about to answer and on which device.
 
 Prefer not to activate the environment? Prefix any command with `uv run --no-sync`, on any system:
 `uv run --no-sync rizzo serve --bits 8`. (`--no-sync` matters: a plain `uv run` would re-sync the
 environment without your backend extra and remove it.)
 
-| Extra | Hardware | Status |
-| --- | --- | --- |
-| `mlx` | Apple Silicon | reference platform: every published result (M4 Pro) |
-| `cuda` | NVIDIA GPU, Windows / Linux | tested on Windows 10 + RTX 5060 Ti 16 GB (4B Q8: 4 questions in ~310 ms warm). Linux not tried. The very first request compiles GPU kernels and can take up to a minute; later runs reuse them |
-| `cpu` | any x86-64 / ARM PC | **installs and passes the unit tests, but was impractically slow in our only attempt** (Windows, i7-7700K: ~3 minutes for an 8-token forward pass of the 1.7B at 8 bit). Treat as a last resort |
+| Stack | Install | Hardware | Status |
+| --- | --- | --- | --- |
+| **MLX** | `--extra mlx` | Apple Silicon (Metal) | reference platform: every published Mac result (M4 Pro) |
+| **MLX** | `--extra cuda` | NVIDIA GPU, Windows / Linux | tested on Windows 10 + RTX 5060 Ti 16 GB (4B Q8: 4 questions in ~310 ms warm). Linux not tried. The very first request compiles GPU kernels and can take up to a minute; later runs reuse them |
+| **MLX** | `--extra cpu` | any x86-64 / ARM PC | **installs and passes the unit tests, but was impractically slow in our only attempt** (Windows, i7-7700K: ~3 minutes for an 8-token forward pass of the 1.7B at 8 bit). Treat as a last resort |
+| **llama.cpp** | `--extra llama` + a build you make once | AMD / Intel via Vulkan or HIP, NVIDIA, CPU | tested on Linux + RX 7900 XTX via Vulkan (4B Q8_0: 7.19 decisions/s, p50 148 ms). Other GPUs take the same code path, untested here |
 
-All three are the same [MLX](https://github.com/ml-explore/mlx) runtime with a different compute
-backend, so prompts, API and results format are identical. `cuda` and `cpu` cannot be installed
-together. Add `--extra test` if you want to run the test suite.
+[MLX](https://github.com/ml-explore/mlx) covers Apple and NVIDIA through one runtime, so prompts,
+API and results format are identical across `mlx` / `cuda` / `cpu` (`cuda` and `cpu` cannot be
+installed together; add `--extra test` if you want to run the test suite). **llama.cpp** is the
+bridge to the GPUs MLX cannot drive, and it takes a `cmake` build and a GGUF instead of a wheel —
+which is why it is a row of its own, with its own [runbook](docs/llama-amd.md) (Italian).
 
-**AMD GPUs (and anything else llama.cpp supports).** MLX has no AMD backend, so there is a
-second backend that talks to `libllama.so` directly. It is not an extra you can `uv sync`: build
-llama.cpp once with Vulkan or HIP, then point Rizzo Flow at it. `spark2_5` is upstream since
-[PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868) (v0.4.1 is pinned here), so no fork
-is needed.
+**One flag decides.** `--backend auto` (the default) reads the accelerators actually present and
+picks the first stack that can drive one: Apple Silicon → MLX; NVIDIA → MLX-CUDA **if it is
+installed and has a usable GPU**, otherwise llama.cpp; AMD or Intel → llama.cpp over Vulkan or HIP;
+no GPU → llama.cpp on CPU. It asks whether a stack has a *usable accelerator*, not whether its
+files exist: `mlx-cpu` imports on any machine, and on an AMD box that would cost minutes per
+decision, so llama.cpp wins there. Pin hardware with `--device apple|nvidia|amd|intel|gpu`, pin a
+stack with `--device mlx|vulkan|hip`; a pin that cannot be honoured **fails** instead of quietly
+running on CPU. `rizzo devices` prints the hardware it found and the choice `auto` would make.
+Context sizing and the measured numbers: [docs/llama-amd.md](docs/llama-amd.md) and
+[the AMD results below](#llamacpp-on-amd-linux--rx-7900-xtx).
 
-```bash
-export RIZZO_LLAMA_LIB=/path/to/llama.cpp/build/bin
-uv sync --locked --extra llama --extra test
-rizzo download --format gguf --quant q8_0
-rizzo devices                                   # reports both stacks
-rizzo decide examples/ticket.json --backend llama --quant q8_0
-```
-
-`--backend auto` (the default) probes the machine and picks the first stack that can drive the
-accelerators actually present: Apple Silicon → MLX/Metal, an NVIDIA GPU → MLX-CUDA when the CUDA
-extra is installed and usable, otherwise llama.cpp, an AMD or Intel GPU → llama.cpp over Vulkan or
-HIP, and CPU → llama.cpp. Pass `--device nvidia|amd|intel|apple|gpu` to pin hardware, or
-`--device mlx|vulkan|hip` to pin a stack; an impossible pin fails instead of quietly running on
-CPU. `--bits` is MLX-only: with llama.cpp you choose an already quantized artifact (`--quant`, or
-`--gguf` for your own file). `rizzo devices` prints the hardware it found and what `auto` would
-pick. Full runbook, context sizing and limitations: [docs/llama-amd.md](docs/llama-amd.md)
-(Italian). Measured on Linux + RX 7900 XTX via Vulkan:
-[numbers below](#llamacpp-on-amd-linux--rx-7900-xtx).
-
-**2 · Download a model** — pick one; weights go to `models/` (git-ignored):
+**2 · Download a model** — pick one; artifacts go to `models/` (git-ignored), or to
+`RIZZO_MODEL_DIR` if you set it. Which command depends on your stack:
 
 ```bash
+# MLX stack: safetensors for one checkpoint
 rizzo download                 # Spark-X2.5-4B   · ~8 GB   · default
 rizzo download --size 1.7b     # Spark-X2.5-1.7B · ~3.4 GB · smaller and faster
+
+# llama.cpp stack: a pre-quantized GGUF (the safetensors above are no use to it)
+rizzo download --format gguf --quant q8_0    # ~4.4 GB
+rizzo download --format gguf --quant bf16    # ~8.2 GB
 ```
 
 | `--size` | Checkpoint | Weights | Status |
@@ -323,26 +360,44 @@ rizzo download --size 1.7b     # Spark-X2.5-1.7B · ~3.4 GB · smaller and faste
 | `4b` (default) | [XHToken/Spark-X2.5-4B](https://huggingface.co/XHToken/Spark-X2.5-4B) | ~8 GB | every result in this README unless it says 1.7B |
 | `1.7b` | [XHToken/Spark-X2.5-1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B) | ~3.4 GB | runs, ~2× faster, **much less accurate** (below) |
 
-Both are the same Spark2.5 architecture with the same tokenizer and native 1M-token context, at
-pinned revisions. Measured on CUDA at 8 bit with prompt v3: on our own 20-decision smoke set the
-1.7B scores 0.45 against 0.95 for the 4B; on SemIf's fixtures 0.700 / 0.633 against 0.829 / 0.865
-([below](#same-fixtures-with-the-shipped-prompt-v3-windows--cuda-rtx-5060-ti)), at about half
-the latency. With abstention enabled it picks "cannot determine" almost every time; use it with `"allow_abstain": false` (the
-Jev-compatible endpoint always does) and check it on your own data before relying on it.
+For the llama.cpp stack only the 4B is pinned as a GGUF today; the `--size` table above describes
+the MLX checkpoints, and asking for a GGUF of another size is refused rather than silently loading
+the 4B.
+
+Both checkpoints are the same Spark2.5 architecture with the same tokenizer and native 1M-token
+context, at pinned revisions. Measured on CUDA at 8 bit with prompt v3: on our own 20-decision
+smoke set the 1.7B scores 0.45 against 0.95 for the 4B; on SemIf's fixtures 0.700 / 0.633 against
+0.829 / 0.865 ([below](#same-fixtures-with-the-shipped-prompt-v3-windows--cuda-rtx-5060-ti)), at
+about half the latency. With abstention enabled it picks "cannot determine" almost every time; use
+it with `"allow_abstain": false` (the Jev-compatible endpoint always does) and check it on your own
+data before relying on it.
 
 **3 · Start the backend**
 
 ```bash
-rizzo serve --bits 8                 # 4B, 8 bit, ~5 GiB
-rizzo serve --size 1.7b --bits 8     # 1.7B
+rizzo serve --bits 8                       # MLX stack: 4B, 8 bit in memory, ~5 GiB
+rizzo serve --size 1.7b --bits 8           # MLX stack: the smaller checkpoint
+rizzo serve --backend llama --quant q8_0   # llama.cpp stack: the pinned GGUF, 4.4 GB on disk
 ```
 
-Loading takes a few seconds; the server is ready when it prints
-`Uvicorn running on http://127.0.0.1:8017`. Useful flags: `--bits 4|8` (omit for BF16),
-`--device auto|gpu|apple|nvidia|amd|intel|cpu|mlx|vulkan|hip` (default `auto`: the best
-accelerator present; vendor names pin hardware, `mlx`/`vulkan`/`hip` pin a stack), `--port`, `--host`, `--batch-size` (question micro-batch, default 4), `--ctx` (context limit in tokens, default 8192),
-`--model /path/to/checkpoint` (overrides `--size`), `--calibration fit.json`.
+Loading takes a few seconds on either stack; the server is ready when it prints
+`Uvicorn running on http://127.0.0.1:8017`.
+
+| Flag | Stack | Meaning |
+| --- | --- | --- |
+| `--backend auto\|mlx\|llama` | both | `auto` is the default and picks from the hardware |
+| `--device …` | both | `auto`, a vendor (`apple`/`nvidia`/`amd`/`intel`/`gpu`), a stack (`mlx`/`vulkan`/`hip`) or `cpu` |
+| `--ctx` | both | per-question token limit, default 8192 |
+| `--batch-size` | both | question micro-batch, default 4 |
+| `--port`, `--host` | both | default `127.0.0.1:8017` |
+| `--calibration fit.json` | both | temperature scaling fitted on your own data |
+| `--model /path/to/checkpoint` | MLX | overrides `--size` |
+| `--bits 4\|8` | MLX only | quantize in memory; omit for BF16. Refused with `--backend llama` |
+| `--quant q8_0\|bf16`, `--gguf FILE` | llama.cpp only | which GGUF to load; your own file needs no pin |
+
 Set `RIZZO_API_KEY=...` before starting if you want Bearer auth on the Jev-compatible endpoints.
+With the llama.cpp stack, `RIZZO_LLAMA_LIB` must point at the build and `RIZZO_MODEL_DIR` at the
+directory holding the GGUF (default `./models`).
 
 **4 · Open the playground**
 
@@ -422,9 +477,11 @@ Interactive OpenAPI docs: <http://127.0.0.1:8017/docs>. Schemas: `request.schema
 
 ## Results so far
 
-Hardware for everything we ran: **Apple M4 Pro, 24 GiB**. Timings exclude model load and warm-up
-and include request compilation plus synchronized GPU inference. All reports are committed,
-create-only, with logits, prompt hashes and weight hashes: [results/](results/README.md) (Italian).
+Hardware is stated in each table heading: the MLX tables are **Apple M4 Pro, 24 GiB**, the v3
+quality table is **Windows + CUDA (RTX 5060 Ti)**, the llama.cpp table is **Linux + Vulkan
+(RX 7900 XTX)**. Timings exclude model load and warm-up and include request compilation plus
+synchronized GPU inference. All reports are committed, create-only, with logits, prompt hashes and
+weight hashes: [results/](results/README.md) (Italian).
 
 ### Own development fixtures (prompt v2)
 
@@ -600,6 +657,10 @@ Architecture notes and the current state of the work: [CLAUDE.md](CLAUDE.md) (It
   [Spark-X2.5-1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B) (revision `14d6e83c…`) and the
   official [Spark MLX runtime](https://github.com/XHToken/Spark-MLX-LLM) (commit `de2b4379…`),
   both Apache-2.0. MLX `0.32.2`, MLX-LM `0.31.3`.
+- [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT): the second runtime, for AMD and any GPU
+  MLX cannot drive. `spark2_5` support is upstream since
+  [PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868); v0.4.1 is pinned here, and the
+  Q8_0 / bfloat16 GGUF is the `stornic56` conversion, pinned by revision and sha256 in `config.py`.
 
 ## License
 
