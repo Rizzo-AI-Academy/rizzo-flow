@@ -32,7 +32,7 @@ def llama_runtime():
         pytest.skip("set RIZZO_LLAMA_TEST=1 with libllama and a GGUF to run real-weight tests")
     from rizzo_flow.llama_runtime import LlamaRuntime
 
-    runtime = LlamaRuntime.load(LLAMA_LIBRARY, LLAMA_GGUF, n_ctx=256, n_seq_max=2, device="auto")
+    runtime = LlamaRuntime.load(LLAMA_LIBRARY, LLAMA_GGUF, n_ctx=4096, n_seq_max=5, device="auto")
     try:
         yield runtime
     finally:

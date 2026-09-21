@@ -119,7 +119,11 @@ class Batch:
 
 
 def build_batch_spec(
-    prefix_length: int, suffixes: list[list[int]], seq_ids: list[int]
+    prefix_length: int,
+    suffixes: list[list[int]],
+    seq_ids: list[int],
+    *,
+    produce_logits: bool = True,
 ) -> BatchSpec:
     """Concatenate suffixes after a shared prefix, each on its own sequence, with no padding."""
     if not suffixes:
@@ -135,7 +139,8 @@ def build_batch_spec(
             positions.append(prefix_length + offset)
             flat_seq_ids.append(seq_id)
         finals.append(len(tokens) - 1)
-    return BatchSpec(tokens, positions, flat_seq_ids, frozenset(finals), finals)
+    logits_at = frozenset(finals) if produce_logits else frozenset()
+    return BatchSpec(tokens, positions, flat_seq_ids, logits_at, finals)
 
 
 def select_slots(pointer, slots: list[int]) -> list[float]:
@@ -307,6 +312,8 @@ class _Lib:
                 [ctypes.c_void_p, ctypes.c_int32],
             ),
             "llama_n_ctx": (ctypes.c_uint32, [ctypes.c_void_p]),
+            "llama_n_ctx_seq": (ctypes.c_uint32, [ctypes.c_void_p]),
+            "llama_n_seq_max": (ctypes.c_uint32, [ctypes.c_void_p]),
             "llama_print_system_info": (ctypes.c_char_p, []),
         }
         for name, (restype, argtypes) in declarations.items():
@@ -538,6 +545,15 @@ class LlamaRuntime:
     @property
     def n_ctx(self) -> int:
         return int(self._lib.llama_n_ctx(self._context))
+
+    @property
+    def n_ctx_seq(self) -> int:
+        """Context usable by a single sequence; llama.cpp divides `n_ctx` across sequences."""
+        return int(self._lib.llama_n_ctx_seq(self._context))
+
+    @property
+    def n_seq_max(self) -> int:
+        return int(self._lib.llama_n_seq_max(self._context))
 
     @property
     def train_context(self) -> int:
