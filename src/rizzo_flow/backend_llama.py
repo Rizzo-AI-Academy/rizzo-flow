@@ -12,7 +12,7 @@ import os
 import time
 from pathlib import Path
 
-from .config import find_gguf_pin, identify
+from .config import find_gguf_pin, identify, sha256_file
 from .llama_runtime import LLAMA_COMMIT, LLAMA_VERSION, LlamaRuntime, build_batch_spec
 from .llama_tokenizer import LlamaTokenizer
 from .prompts import PROMPT_VERSION, Compiled, canonical
@@ -24,11 +24,6 @@ DEFAULT_LIBRARY = Path("llama.cpp-amd/build/bin")
 
 def library_dir() -> Path:
     return Path(os.environ.get(LIBRARY_ENV, DEFAULT_LIBRARY))
-
-
-def sha256_file(path: Path) -> str:
-    with Path(path).open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 class LlamaBackend:

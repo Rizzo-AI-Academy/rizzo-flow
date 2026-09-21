@@ -3,8 +3,8 @@ import json
 import sys
 from pathlib import Path
 
-from .config import DEFAULT_SIZE, MODELS, download_model
-from .runtime import DEVICES
+from .backends import BACKENDS, DEVICE_CHOICES
+from .config import DEFAULT_SIZE, GGUF_MODELS, MODELS, download_gguf, download_model
 
 
 def write_json(value, destination):
@@ -33,6 +33,13 @@ def main():
     download = commands.add_parser("download", help="Download the pinned original Spark checkpoint")
     download.add_argument("--size", choices=tuple(MODELS), default=DEFAULT_SIZE)
     download.add_argument("--destination", type=Path, help="Default: models/<checkpoint name>")
+    download.add_argument(
+        "--format",
+        choices=("mlx", "gguf"),
+        default="mlx",
+        help="mlx = original safetensors for the MLX backend; gguf = pinned llama.cpp artifact",
+    )
+    download.add_argument("--quant", choices=tuple(GGUF_MODELS), default="q8_0")
     schema = commands.add_parser("schema", help="Print the JSON Schema for requests")
     schema.add_argument("--output")
     schema.add_argument("--response", action="store_true", help="Print the output schema")
@@ -47,10 +54,18 @@ def main():
         p.add_argument("--model", type=Path, help="Checkpoint directory; overrides --size")
         p.add_argument("--bits", type=int, choices=(4, 8))
         p.add_argument(
-            "--device",
-            choices=DEVICES,
+            "--backend",
+            choices=BACKENDS,
             default="auto",
-            help="auto = GPU if this install has one, else CPU; mlx = Apple GPU; cuda = NVIDIA GPU",
+            help="auto = GGUF means llama.cpp, otherwise the MLX stack",
+        )
+        p.add_argument("--gguf", type=Path, help="GGUF checkpoint for the llama backend")
+        p.add_argument("--quant", choices=tuple(GGUF_MODELS), default="q8_0")
+        p.add_argument(
+            "--device",
+            choices=DEVICE_CHOICES,
+            default="auto",
+            help="auto = GPU if available; mlx/cuda/vulkan/hip/cpu select a specific backend",
         )
         p.add_argument("--batch-size", type=int, default=4)
         # --max-tokens is the former name, kept as an alias.
@@ -75,12 +90,15 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "download":
-            print(download_model(args.destination, args.size))
+            if args.format == "gguf":
+                print(download_gguf(args.quant, args.destination))
+            else:
+                print(download_model(args.destination, args.size))
             return
         if args.command == "devices":
-            from .runtime import describe
+            from .backends import describe as describe_backends
 
-            write_json(describe(), None)
+            write_json(describe_backends(), None)
             return
         if args.command == "schema":
             from .responses import Response
@@ -95,7 +113,7 @@ def main():
                 fit_temperature(read_jsonl(args.input), args.fingerprint).model_dump(), args.output
             )
             return
-        from .backend import SparkBackend
+        from .backends import load_backend
         from .calibration import Calibration
         from .engine import Engine
 
@@ -104,10 +122,15 @@ def main():
             from .schema import Request
 
             request = Request.model_validate_json(args.input.read_text(encoding="utf-8"))
-        backend = SparkBackend.load(
-            args.model or MODELS[args.size].path,
+        backend = load_backend(
+            args.backend,
+            size=args.size,
+            model=args.model,
+            gguf=args.gguf,
+            quant=args.quant,
             bits=args.bits,
             device=args.device,
+            ctx=args.ctx,
             batch_size=args.batch_size,
         )
         calibration = Calibration.from_file(args.calibration) if args.calibration else None

@@ -1,4 +1,7 @@
+import hashlib
 import os
+import shutil
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -96,6 +99,34 @@ def gguf_path(quant: str) -> Path:
 def find_gguf_pin(filename: str) -> GgufSpec | None:
     """Match a local GGUF file name back to its pinned artifact, for provenance."""
     return next((spec for spec in GGUF_MODELS.values() if spec.file == filename), None)
+
+
+def sha256_file(path: Path) -> str:
+    """Streaming digest: checkpoints are gigabytes, so they are never read into memory."""
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def download_gguf(quant: str, destination=None) -> Path:
+    """Fetch the pinned GGUF with the standard library, verifying the pinned sha256."""
+    if quant not in GGUF_MODELS:
+        raise ValueError(f"Unknown quant {quant}; available: {', '.join(GGUF_MODELS)}")
+    spec = GGUF_MODELS[quant]
+    target = Path(destination) if destination else gguf_path(quant)
+    if target.is_file() and sha256_file(target) == spec.sha256:
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    url = f"https://huggingface.co/{spec.repo}/resolve/{spec.revision}/{spec.file}"
+    partial = target.with_name(target.name + ".part")
+    request = urllib.request.Request(url, headers={"User-Agent": "rizzo-flow"})
+    with urllib.request.urlopen(request, timeout=120) as response, partial.open("wb") as out:
+        shutil.copyfileobj(response, out, length=1 << 20)
+    digest = sha256_file(partial)
+    if digest != spec.sha256:
+        partial.unlink()
+        raise ValueError(f"{spec.file}: sha256 mismatch (expected {spec.sha256}, got {digest})")
+    partial.replace(target)
+    return target
 
 
 def download_model(destination=None, size=DEFAULT_SIZE):
