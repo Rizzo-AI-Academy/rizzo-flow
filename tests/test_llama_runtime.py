@@ -5,8 +5,6 @@ the integration tests marked `llama`.
 """
 
 import ctypes
-import os
-from pathlib import Path
 
 import pytest
 
@@ -18,20 +16,6 @@ from rizzo_flow.llama_runtime import (
     resolve,
     select_slots,
 )
-
-# Real-weight tests are opt-in: `RIZZO_LLAMA_TEST=1 pytest -q -m llama`. They load a 4 GB
-# checkpoint, so they must never run as part of the default fast unit suite.
-LIBRARY_DIR = Path(os.environ.get("RIZZO_LLAMA_LIB", "/home/snorcini/git/llama.cpp-amd/build/bin"))
-GGUF = Path(
-    os.environ.get("RIZZO_LLAMA_GGUF", "/mnt/model-cache/rizzo-flow/Spark-X2.5-4B-Q8_0.gguf")
-)
-llama_integration = pytest.mark.skipif(
-    os.environ.get("RIZZO_LLAMA_TEST") != "1"
-    or not (LIBRARY_DIR / "libllama.so").exists()
-    or not GGUF.is_file(),
-    reason="set RIZZO_LLAMA_TEST=1 with libllama and a GGUF to run real-weight tests",
-)
-
 
 # --- flat batch: no padding, per-token positions and sequence ids -------------------------
 
@@ -230,20 +214,20 @@ def test_close_is_idempotent_and_blocks_use():
 
 
 @pytest.mark.llama
-@llama_integration
-def test_real_llama_cpp_loads_spark_gguf_and_serves_selected_logits():
-    with LlamaRuntime.load(LIBRARY_DIR, GGUF, n_ctx=256, n_seq_max=2, device="auto") as runtime:
-        assert runtime.architecture == "spark2_5"
-        assert runtime.compute_backend in ("vulkan", "hip", "cpu")
-        assert runtime.tokenize("A") == [46]
-        assert runtime.token_to_piece(46) == "A"
-        prompt = runtime.tokenize("Question: is the sky blue?")
-        runtime.memory_clear()
-        runtime.decode(build_batch_spec(0, [prompt], [0]))
-        runtime.seq_copy(0, 1)
-        suffix = runtime.tokenize("Yes")
-        spec = build_batch_spec(len(prompt), [suffix], [1])
-        runtime.decode(spec)
-        row = runtime.logits(spec.finals[0], [runtime.tokenize(letter)[0] for letter in "AB"])
-        assert len(row) == 2 and all(isinstance(value, float) for value in row)
-        runtime.seq_remove(1)
+@pytest.mark.llama
+def test_real_llama_cpp_loads_spark_gguf_and_serves_selected_logits(llama_runtime):
+    runtime = llama_runtime
+    assert runtime.architecture == "spark2_5"
+    assert runtime.compute_backend in ("vulkan", "hip", "cpu")
+    assert runtime.tokenize("A") == [46]
+    assert runtime.token_to_piece(46) == "A"
+    prompt = runtime.tokenize("Question: is the sky blue?")
+    runtime.memory_clear()
+    runtime.decode(build_batch_spec(0, [prompt], [0]))
+    runtime.seq_copy(0, 1)
+    suffix = runtime.tokenize("Yes")
+    spec = build_batch_spec(len(prompt), [suffix], [1])
+    runtime.decode(spec)
+    row = runtime.logits(spec.finals[0], [runtime.tokenize(letter)[0] for letter in "AB"])
+    assert len(row) == 2 and all(isinstance(value, float) for value in row)
+    runtime.seq_remove(1)

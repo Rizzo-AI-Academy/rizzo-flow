@@ -30,6 +30,9 @@ cpu = [
   "spark-mlx-llm @ git+https://github.com/XHToken/Spark-MLX-LLM.git@de2b4379fa1e2f2e1f99d84c83f0e008f651d86c",
 ]
 test = ["pytest>=8.4,<10", "httpx>=0.28,<1", "ruff>=0.12"]
+# llama.cpp backend: the compute library is built from source, but the chat template is
+# rendered from the GGUF in Python. Kept optional so MLX installs stay lean.
+llama = ["jinja2>=3.1,<4"]
 
 [tool.uv]
 # mlx-cuda-13 and mlx-cpu ship the same library files, so they cannot share an environment.
