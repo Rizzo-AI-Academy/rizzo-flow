@@ -9,14 +9,35 @@ because ctypes must know the exact layout to receive them by value.
 
 import ctypes
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 # Pinned build. Changing this invalidates the runtime identity of every GGUF cache entry.
 LLAMA_COMMIT = "b29c606e28a01b1bc8c1351026a0fa6e616bf6c4"
 LLAMA_VERSION = "0.4.1"
-DEVICES = ("auto", "gpu", "vulkan", "hip", "cpu")
+DEVICES = ("auto", "gpu", "cuda", "vulkan", "hip", "cpu")
 GPU_LAYERS = 99  # offload every layer; llama.cpp clamps to the number of layers it has
+# Preference order when a build ships several ggml backends: native first, Vulkan last.
+GPU_BACKENDS = ("cuda", "vulkan", "hip")
+# libllama is a shared object on Linux and macOS and a plain DLL on Windows. Hardcoding `.so`
+# made the whole backend invisible to `--backend auto` on the other two platforms.
+LIBRARY_NAMES = {"linux": "libllama.so", "darwin": "libllama.dylib", "win32": "llama.dll"}
+
+
+def library_names(platform_name: str | None = None) -> tuple[str, ...]:
+    """libllama's file name on this platform (or an explicit one, for tests and docs)."""
+    name = sys.platform if platform_name is None else platform_name
+    return (LIBRARY_NAMES.get(name, "libllama.so"),)
+
+
+def library_file(directory: Path) -> Path | None:
+    """The libllama shared object inside `directory`, or None when the build is absent."""
+    return next(
+        (path for path in (Path(directory) / name for name in library_names()) if path.is_file()),
+        None,
+    )
+
 
 llama_token = ctypes.c_int32
 llama_pos = ctypes.c_int32
@@ -151,13 +172,9 @@ def select_slots(pointer, slots: list[int]) -> list[float]:
 
 
 def detect_backends(library_dir: Path) -> list[str]:
-    """GPU compute backends shipped next to libllama; ggml loads them at runtime."""
+    """GPU compute backends shipped next to libllama, in preference order; ggml loads them."""
     directory = Path(library_dir)
-    found = []
-    for name in ("vulkan", "hip"):
-        if any(directory.glob(f"libggml-{name}.so*")):
-            found.append(name)
-    return found
+    return [name for name in GPU_BACKENDS if any(directory.glob(f"libggml-{name}.so*"))]
 
 
 def resolve(device: str, available: list[str]) -> tuple[str, int]:
@@ -166,7 +183,9 @@ def resolve(device: str, available: list[str]) -> tuple[str, int]:
         raise ValueError(f"Device must be one of: {', '.join(DEVICES)}")
     if device == "cpu":
         return "cpu", 0
-    gpu = next((name for name in available if name in ("vulkan", "hip")), None)
+    # `available` already comes from detect_backends in preference order: do not re-rank it,
+    # or a CUDA build would silently fall back to Vulkan.
+    gpu = available[0] if available else None
     if device == "auto":
         return (gpu, GPU_LAYERS) if gpu else ("cpu", 0)
     if device == "gpu":
@@ -228,12 +247,21 @@ class _Lib:
         directory = Path(library_dir)
         if not directory.is_dir():
             raise ValueError(f"llama.cpp library directory not found: {directory}")
-        # Load the ggml backends first: libllama.so resolves them lazily.
-        for name in ("libggml-base.so", "libggml.so", "libggml-cpu.so", "libggml-vulkan.so"):
+        # Load the ggml backends first: libllama resolves them lazily. The list is derived from
+        # what the build actually ships, so a CUDA or HIP build preloads its own backend.
+        # NOTICED: these are the Linux/macOS file names; a Windows build ships ggml.dll and
+        # friends and would need its own names before llama.cpp works there.
+        base = ("libggml-base.so", "libggml.so", "libggml-cpu.so")
+        for name in (*base, *(f"libggml-{backend}.so" for backend in detect_backends(directory))):
             candidate = directory / name
             if candidate.exists():
                 ctypes.CDLL(str(candidate), mode=ctypes.RTLD_GLOBAL)
-        return cls(ctypes.CDLL(str(directory / "libllama.so")))
+        library = library_file(directory)
+        if library is None:
+            raise ValueError(
+                f"libllama not found in {directory}; looked for {', '.join(library_names())}"
+            )
+        return cls(ctypes.CDLL(str(library)))
 
     def _declare(self):
         lib = self._cdll

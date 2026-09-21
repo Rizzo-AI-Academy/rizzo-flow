@@ -90,10 +90,17 @@ def model_dir() -> Path:
     return Path(os.environ.get(MODEL_DIR_ENV, "models"))
 
 
-def gguf_path(quant: str) -> Path:
+def gguf_path(quant: str, size: str = DEFAULT_SIZE) -> Path:
+    """Path of the pinned GGUF for this size and quant; refuses a pin of another size."""
     if quant not in GGUF_MODELS:
         raise ValueError(f"Unknown quant {quant}; available: {', '.join(GGUF_MODELS)}")
-    return model_dir() / GGUF_MODELS[quant].file
+    spec = GGUF_MODELS[quant]
+    if spec.size != size:
+        raise ValueError(
+            f"No GGUF pinned for size {size}: the {quant} artifact is {spec.size}. "
+            "Pin one in config.GGUF_MODELS or pass --gguf."
+        )
+    return model_dir() / spec.file
 
 
 def find_gguf_pin(filename: str) -> GgufSpec | None:
@@ -107,12 +114,12 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def download_gguf(quant: str, destination=None) -> Path:
+def download_gguf(quant: str, destination=None, size: str = DEFAULT_SIZE) -> Path:
     """Fetch the pinned GGUF with the standard library, verifying the pinned sha256."""
     if quant not in GGUF_MODELS:
         raise ValueError(f"Unknown quant {quant}; available: {', '.join(GGUF_MODELS)}")
     spec = GGUF_MODELS[quant]
-    target = Path(destination) if destination else gguf_path(quant)
+    target = Path(destination) if destination else gguf_path(quant, size)
     if target.is_file() and sha256_file(target) == spec.sha256:
         return target
     target.parent.mkdir(parents=True, exist_ok=True)

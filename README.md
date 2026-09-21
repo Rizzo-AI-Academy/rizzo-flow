@@ -300,10 +300,16 @@ rizzo devices                                   # reports both stacks
 rizzo decide examples/ticket.json --backend llama --quant q8_0
 ```
 
-`--backend auto` picks llama.cpp when `--gguf` is given, otherwise MLX when installed. `--bits`
-is MLX-only: with llama.cpp you choose an already quantized artifact. Full runbook, context
-sizing and limitations: [docs/llama-amd.md](docs/llama-amd.md) (Italian). Measured on Linux +
-RX 7900 XTX via Vulkan: [numbers below](#llamacpp-on-amd-linux--rx-7900-xtx).
+`--backend auto` (the default) probes the machine and picks the first stack that can drive the
+accelerators actually present: Apple Silicon → MLX/Metal, an NVIDIA GPU → MLX-CUDA when the CUDA
+extra is installed and usable, otherwise llama.cpp, an AMD or Intel GPU → llama.cpp over Vulkan or
+HIP, and CPU → llama.cpp. Pass `--device nvidia|amd|intel|apple|gpu` to pin hardware, or
+`--device mlx|vulkan|hip` to pin a stack; an impossible pin fails instead of quietly running on
+CPU. `--bits` is MLX-only: with llama.cpp you choose an already quantized artifact (`--quant`, or
+`--gguf` for your own file). `rizzo devices` prints the hardware it found and what `auto` would
+pick. Full runbook, context sizing and limitations: [docs/llama-amd.md](docs/llama-amd.md)
+(Italian). Measured on Linux + RX 7900 XTX via Vulkan:
+[numbers below](#llamacpp-on-amd-linux--rx-7900-xtx).
 
 **2 · Download a model** — pick one; weights go to `models/` (git-ignored):
 
@@ -333,7 +339,8 @@ rizzo serve --size 1.7b --bits 8     # 1.7B
 
 Loading takes a few seconds; the server is ready when it prints
 `Uvicorn running on http://127.0.0.1:8017`. Useful flags: `--bits 4|8` (omit for BF16),
-`--device auto|mlx|cuda|cpu` (default `auto`: the GPU if the install has one), `--port`, `--host`, `--batch-size` (question micro-batch, default 4), `--ctx` (context limit in tokens, default 8192),
+`--device auto|gpu|apple|nvidia|amd|intel|cpu|mlx|vulkan|hip` (default `auto`: the best
+accelerator present; vendor names pin hardware, `mlx`/`vulkan`/`hip` pin a stack), `--port`, `--host`, `--batch-size` (question micro-batch, default 4), `--ctx` (context limit in tokens, default 8192),
 `--model /path/to/checkpoint` (overrides `--size`), `--calibration fit.json`.
 Set `RIZZO_API_KEY=...` before starting if you want Bearer auth on the Jev-compatible endpoints.
 

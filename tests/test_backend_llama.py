@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from rizzo_flow.backend_llama import LlamaBackend, sha256_file
+from rizzo_flow.backend_llama import LlamaBackend, library_names, sha256_file
 from rizzo_flow.config import GGUF_MODELS
 from rizzo_flow.llama_runtime import LLAMA_COMMIT
 from rizzo_flow.prompts import PROMPT_VERSION, Compiled, compile_request
@@ -17,6 +17,15 @@ from rizzo_flow.schema import Request
 
 GGUF_NAME = Path(GGUF_MODELS["q8_0"].file)
 PIN = GGUF_MODELS["q8_0"]
+
+
+@pytest.mark.parametrize(
+    ("platform_name", "expected"),
+    [("linux", "libllama.so"), ("darwin", "libllama.dylib"), ("win32", "llama.dll")],
+)
+def test_library_names_follow_the_platform(platform_name, expected):
+    """A hardcoded `.so` hid the backend on Windows and macOS, where the file is not a .so."""
+    assert library_names(platform_name) == (expected,)
 
 
 class FakeRuntime:

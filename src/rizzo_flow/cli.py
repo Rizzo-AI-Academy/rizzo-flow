@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from .backends import BACKENDS, DEVICE_CHOICES
+from .backends import BACKENDS, DEFAULT_QUANT, DEVICE_CHOICES
 from .config import DEFAULT_SIZE, GGUF_MODELS, MODELS, download_gguf, download_model
 
 
@@ -39,7 +39,7 @@ def main():
         default="mlx",
         help="mlx = original safetensors for the MLX backend; gguf = pinned llama.cpp artifact",
     )
-    download.add_argument("--quant", choices=tuple(GGUF_MODELS), default="q8_0")
+    download.add_argument("--quant", choices=tuple(GGUF_MODELS), default=DEFAULT_QUANT)
     schema = commands.add_parser("schema", help="Print the JSON Schema for requests")
     schema.add_argument("--output")
     schema.add_argument("--response", action="store_true", help="Print the output schema")
@@ -57,15 +57,27 @@ def main():
             "--backend",
             choices=BACKENDS,
             default="auto",
-            help="auto = GGUF means llama.cpp, otherwise the MLX stack",
+            help="auto = best stack for this machine's GPU; mlx/llama pin one",
         )
-        p.add_argument("--gguf", type=Path, help="GGUF checkpoint for the llama backend")
-        p.add_argument("--quant", choices=tuple(GGUF_MODELS), default="q8_0")
+        p.add_argument(
+            "--gguf",
+            type=Path,
+            help="GGUF checkpoint; implies the llama backend and settles the choice",
+        )
+        p.add_argument(
+            "--quant",
+            choices=tuple(GGUF_MODELS),
+            default=DEFAULT_QUANT,
+            help="Which pinned GGUF to load (llama backend only)",
+        )
         p.add_argument(
             "--device",
             choices=DEVICE_CHOICES,
             default="auto",
-            help="auto = GPU if available; mlx/cuda/vulkan/hip/cpu select a specific backend",
+            help=(
+                "auto = best accelerator present; gpu/apple/nvidia/amd/intel pin hardware; "
+                "mlx/vulkan/hip pin a stack; cpu forces CPU"
+            ),
         )
         p.add_argument("--batch-size", type=int, default=4)
         # --max-tokens is the former name, kept as an alias.
@@ -91,7 +103,7 @@ def main():
     try:
         if args.command == "download":
             if args.format == "gguf":
-                print(download_gguf(args.quant, args.destination))
+                print(download_gguf(args.quant, args.destination, args.size))
             else:
                 print(download_model(args.destination, args.size))
             return

@@ -85,9 +85,19 @@ non è imposto e il campo `gguf_source` nei metadati resta `null` (provenienza n
   --output results/llama-q8-vulkan-smoke/
 ```
 
-`--backend auto` (default) sceglie llama.cpp se è stato passato `--gguf`, altrimenti MLX se
-installato, altrimenti llama.cpp. `--bits` vale solo per MLX: con il backend llama va scelto un
-GGUF già quantizzato (`--quant`), e il CLI lo rifiuta con un messaggio esplicito.
+`--backend auto` (default) scegle da solo in base all'**hardware presente**: Apple Silicon → MLX,
+GPU NVIDIA → MLX-CUDA se l'extra `cuda` è installato *e usabile*, altrimenti llama.cpp; GPU AMD o
+Intel → llama.cpp (Vulkan o HIP); senza GPU → llama.cpp su CPU. I nomi dei device sono quelli
+dell'hardware (`nvidia`, `amd`, `intel`, `apple`, `gpu`) oppure dello stack (`mlx`, `vulkan`,
+`hip`); un pin impossibile (`--device nvidia` su una macchina AMD) **fallisce**, non ripiega in
+silenzio sulla CPU. `rizzo devices` stampa hardware, stack installati e la scelta di `auto`.
+
+Un dettaglio che conta: `auto` guarda se lo stack ha un **acceleratore usabile**, non se il
+pacchetto è importabile. `mlx-cpu` si importa ovunque, ma su una macchina AMD verrebbe scelto solo
+per quello e costerebbe minuti per decisione: ora vince llama.cpp/Vulkan.
+
+`--bits` vale solo per MLX: con il backend llama va scelto un GGUF già quantizzato (`--quant`), e
+il CLI lo rifiuta con un messaggio esplicito. `--gguf` implica il backend llama.
 
 ## 5 · Dimensionamento del contesto (importante)
 

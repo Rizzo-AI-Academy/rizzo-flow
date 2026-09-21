@@ -13,7 +13,14 @@ import time
 from pathlib import Path
 
 from .config import find_gguf_pin, identify, sha256_file
-from .llama_runtime import LLAMA_COMMIT, LLAMA_VERSION, LlamaRuntime, build_batch_spec
+from .llama_runtime import (
+    LLAMA_COMMIT,
+    LLAMA_VERSION,
+    LlamaRuntime,
+    build_batch_spec,
+    library_file,
+    library_names,
+)
 from .llama_tokenizer import LlamaTokenizer
 from .prompts import PROMPT_VERSION, Compiled, canonical
 
@@ -24,6 +31,10 @@ DEFAULT_LIBRARY = Path("llama.cpp-amd/build/bin")
 
 def library_dir() -> Path:
     return Path(os.environ.get(LIBRARY_ENV, DEFAULT_LIBRARY))
+
+
+# Re-exported so callers asking "is the build here?" share one definition of its file name.
+__all__ = ["LIBRARY_ENV", "LlamaBackend", "library_dir", "library_file", "library_names"]
 
 
 class LlamaBackend:

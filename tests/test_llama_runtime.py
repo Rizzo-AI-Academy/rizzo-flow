@@ -75,6 +75,20 @@ def test_detect_backends_from_library_directory(tmp_path):
     assert detect_backends(tmp_path) == ["vulkan", "hip"]
 
 
+def test_detect_backends_finds_a_cuda_build(tmp_path):
+    """An NVIDIA llama.cpp build ships libggml-cuda.so; missing it means `auto` sees no GPU."""
+    (tmp_path / "libggml-cuda.so").touch()
+    (tmp_path / "libggml-vulkan.so").touch()
+    assert detect_backends(tmp_path) == ["cuda", "vulkan"]
+
+
+def test_resolve_prefers_the_first_detected_backend():
+    # detect_backends returns them in preference order, so resolve must not re-rank.
+    assert resolve("auto", ["cuda", "vulkan"]) == ("cuda", 99)
+    assert resolve("gpu", ["cuda", "vulkan"]) == ("cuda", 99)
+    assert resolve("cuda", ["cuda"]) == ("cuda", 99)
+
+
 @pytest.mark.parametrize(
     ("device", "available", "expected"),
     [

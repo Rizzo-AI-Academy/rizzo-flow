@@ -69,7 +69,22 @@ richieste HTTP concorrenti sono serializzate; il parallelismo è *dentro* la ric
 `llama_runtime.py` (ctypes su `libllama`, struct del commit pinnato, batch flat senza padding,
 `llama_memory_seq_cp`/`_seq_rm`, vocab e metadati GGUF), `llama_tokenizer.py` (rende il
 `chat_template.jinja` del GGUF con jinja2 e tokenizza con `llama_tokenize`) e `backend_llama.py`
-(identità/fingerprint e `score`). `--backend auto` sceglie llama se c'è `--gguf`, altrimenti MLX.
+(identità/fingerprint e `score`).
+
+**Scelta automatica (`hardware.py` + `backends.route`).** `auto` non deduce il vendor da cosa è
+installato: `hardware.probe()` legge gli acceleratori presenti (DRM `/sys/class/drm`, driver
+NVIDIA, Apple Silicon) e `route()` incrocia hardware, ciò che ogni stack sa guidare
+(`mlx_devices()`/`llama_devices()`) e la preferenza dell'utente. La regola che conta: si guarda se
+lo stack ha un **acceleratore usabile**, non se il pacchetto è importabile — `mlx-cpu` si importa
+ovunque e su una macchina AMD costerebbe minuti per decisione, quindi lì vince llama.cpp. Ordine:
+Apple→MLX, NVIDIA→MLX-CUDA se usabile altrimenti llama, AMD/Intel→llama, CPU→llama. I device
+pubblici sono dell'hardware (`gpu/apple/nvidia/amd/intel/cpu`), più `mlx/vulkan/hip` che fissano lo
+stack; un pin impossibile **solleva**, un `auto` senza GPU ripiega su CPU con `downgraded=True` e
+`announce()` lo rende un warning visibile. `llama_devices()` deriva i nomi da `detect_backends`,
+che elenca `libggml-cuda|vulkan|hip` in ordine di preferenza; `_Lib.open` precarica quelli che la
+build ha davvero. `gguf_path(quant, size)` rifiuta un GGUF pinnato per un'altra taglia invece di
+caricare il 4B per un `--size 1.7b`.
+
 `--ctx` è per-sequenza: il branching duplica la KV, quindi `load` prenota
 `n_ctx = ctx × (batch_size + 1)` e pretende `n_ctx_seq ≥ ctx`; una `seq_cp` fuori da `n_seq_max`
 aborta il processo, perciò il backend rifiuta la combinazione. Dettagli: `docs/llama-amd.md`.
@@ -264,7 +279,8 @@ di calcolo: extra `mlx` (Apple/Metal), `cuda` (`mlx-cuda-13`, Windows/Linux), `c
 limitato a Linux con `override-dependencies` perché uv legge i metadati del wheel Linux.
 `runtime.py`: `prepare()` (chiamata da `__init__.py`; su Windows stub del modulo solo-Unix
 `resource` importato da `mlx-lm` + DLL `nvidia/cu13`, `nvidia/cudnn` nel `PATH`), `resolve()` per
-`--device auto|gpu|mlx|cuda|cpu` (default `auto`: GPU se l'installazione ne ha una), errori con il
+`--device auto|gpu|mlx|cuda|cpu` (default `auto`: GPU se l'installazione ne ha una; il CLI espone
+anche i nomi dell'hardware `apple/nvidia/amd/intel`, che `backends.route` traduce in questi), errori con il
 comando di installazione, `rizzo devices`. `metadata` riporta `device` (gpu/cpu) e `backend`
 (mlx/cuda/cpu), entrambi nel fingerprint. File letti/scritti sempre in UTF-8.
 `tests/conftest.py` imposta `MLX_ENABLE_TF32=0` (solo nei test) e `tests/test_runtime.py` copre la
