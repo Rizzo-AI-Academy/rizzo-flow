@@ -193,3 +193,26 @@ Come leggerli:
 - Non eseguiti: WANLI ed Every (richiedono il download delle sorgenti), sottoinsieme TypeSafe (non
   ridistribuibile), confronto con generazione JSON e riuso seriale del prefisso (Rizzo non ha
   quei percorsi), SemIf sulla stessa GPU.
+
+## Backend llama.cpp su GPU AMD (`llama-q8-vulkan-validation/`)
+
+Primo run del backend llama.cpp (21 settembre 2026): RX 7900 XTX, Vulkan, `Spark-X2.5-4B-Q8_0`
+di `stornic56` (revision `7ce72e5c…`, sha256 `092a263d…`), prompt v3, `--ctx 8192`,
+`--batch-size 4`. Report: [`validation.json`](llama-q8-vulkan-validation/validation.json),
+runbook: [`../docs/llama-amd.md`](../docs/llama-amd.md).
+
+| Misura | Valore |
+| --- | ---: |
+| Smoke (17 righe), accuracy | 0.95 |
+| Smoke, NLL / Brier / ECE | 0.450 / 0.079 / 0.041 |
+| Smoke, copertura / status accuracy | 0.80 / 0.95 |
+| Throughput / latenza p50 / p95 | 7.19 dec/s / 148 ms / 375 ms |
+| Ticket: prefisso / batch / shared | 186 token / 2 / 0.327 s |
+| Ticket: direct (riferimento) | 0.379 s / 8 batch, stesso argmax |
+
+**Non è un confronto di parità cross-backend.** I numeri MLX/CUDA qui sopra vengono da hardware e
+runtime diversi: la coincidenza sullo smoke (0.95) è un controllo di sanità, non una prova di
+equivalenza. Le prove locali registrate nel report sono: template del GGUF identico a quello HF,
+lettere A–Z token singoli, tokenizer uguale a `llama-tokenize` della stessa build. `prompt_sha256`
+e `input_tokens` sono salvati per riga per rendere possibile un confronto vero in futuro.
+

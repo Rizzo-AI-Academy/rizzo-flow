@@ -286,6 +286,25 @@ All three are the same [MLX](https://github.com/ml-explore/mlx) runtime with a d
 backend, so prompts, API and results format are identical. `cuda` and `cpu` cannot be installed
 together. Add `--extra test` if you want to run the test suite.
 
+**AMD GPUs (and anything else llama.cpp supports).** MLX has no AMD backend, so there is a
+second backend that talks to `libllama.so` directly. It is not an extra you can `uv sync`: build
+llama.cpp once with Vulkan or HIP, then point Rizzo Flow at it. `spark2_5` is upstream since
+[PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868) (v0.4.1 is pinned here), so no fork
+is needed.
+
+```bash
+export RIZZO_LLAMA_LIB=/path/to/llama.cpp/build/bin
+uv sync --locked --extra llama --extra test
+rizzo download --format gguf --quant q8_0
+rizzo devices                                   # reports both stacks
+rizzo decide examples/ticket.json --backend llama --quant q8_0
+```
+
+`--backend auto` picks llama.cpp when `--gguf` is given, otherwise MLX when installed. `--bits`
+is MLX-only: with llama.cpp you choose an already quantized artifact. Full runbook, context
+sizing and limitations: [docs/llama-amd.md](docs/llama-amd.md) (Italian). Measured on Linux +
+RX 7900 XTX via Vulkan: [numbers below](#llamacpp-on-amd-linux--rx-7900-xtx).
+
 **2 · Download a model** — pick one; weights go to `models/` (git-ignored):
 
 ```bash
@@ -474,6 +493,30 @@ Reading this honestly:
 - Still not run: WANLI, Every, the TypeSafe subset, SemIf on this same GPU. Details and reports:
   [`results/README.md`](results/README.md).
 
+### llama.cpp on AMD (Linux · RX 7900 XTX)
+
+Same prompt v3, same fixtures, a different runtime: llama.cpp v0.4.1 built with Vulkan, the
+`stornic56` GGUF at Q8_0 (sha256 pinned), `--ctx 8192`, `--batch-size 4`. Report:
+[`results/llama-q8-vulkan-validation/validation.json`](results/llama-q8-vulkan-validation/validation.json).
+
+| Measurement | Value |
+| --- | ---: |
+| Smoke (17 rows) accuracy | 0.95 |
+| Smoke NLL / Brier / ECE | 0.450 / 0.079 / 0.041 |
+| Smoke coverage / status accuracy | 0.80 / 0.95 |
+| Endpoint throughput | 7.19 decisions/s |
+| Latency p50 / p95 | 148 ms / 375 ms |
+| Ticket: shared prefix / batches | 186 tokens / 2 |
+| Ticket: shared vs direct inference | 0.327 s / 0.379 s, same argmax |
+| Ticket: load (sha256 + model) | ~3.7 s |
+
+**This is not a cross-backend parity claim.** The MLX numbers above come from different hardware
+and a different runtime; the smoke score happens to land on the same 0.95 (NLL 0.428 against
+0.450), which is a sanity check, not evidence of equivalence. What *is* checked locally: the GGUF
+chat template renders byte-identically to the HuggingFace one, every answer letter A–Z is a
+single token, and our tokenizer agrees with `llama-tokenize` of the same build. `prompt_sha256`
+and `input_tokens` are stored per answer so a real cross-backend run is possible later.
+
 ### How prompt v3 was chosen (dev split only)
 
 The fixtures were split by source group into dev and held-out halves, and prompt variants were
@@ -518,14 +561,19 @@ evaluator reports accuracy, NLL, Brier, ECE and coverage.
   [results/README.md](results/README.md)).
 - Residual position bias; permutation debiasing is not implemented.
 - 26 options per question (Jev: 255; SemIf: 16). Beyond that you need two stages.
-- MLX runtime only (Metal, CUDA or CPU backend), one resident model, concurrent requests are serialized.
+- Runtime: MLX (Metal, CUDA or CPU backend) or llama.cpp (Vulkan, HIP or CPU), one resident
+  model, concurrent requests are serialized. The llama.cpp backend projects the full vocabulary
+  (no selected-token optimisation) and cannot report peak memory.
+- `--ctx` is a per-sequence limit; the llama.cpp backend reserves `ctx × (batch-size + 1)` tokens
+  of KV cache because prefix branching duplicates it (~1.4 GB at the defaults on the 4B).
 - English is strongest; an Italian boolean flipped between BF16 and 8 bit in our smoke set.
 - Localhost by default; no rate limiting; not hardened for public exposure.
 
 ## Development
 
 ```bash
-pytest -q                         # 41 tests, no weights needed
+pytest -q                         # unit tests, no weights needed
+RIZZO_LLAMA_TEST=1 pytest -q -m llama   # real GGUF + libllama (opt-in)
 ruff check src tests scripts
 rizzo evaluate benchmarks/smoke.jsonl --compare-modes --output results/local-smoke.json
 python scripts/semif_compare.py --system rizzo --semif ../SemIf --bits 8 --output results/local-semif

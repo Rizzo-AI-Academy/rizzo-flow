@@ -23,9 +23,9 @@ il README pubblico è in inglese, quello italiano storico è in `docs/README.it.
 
 ```bash
 uv sync --extra mlx --extra test --locked        # setup Apple; --extra cuda (NVIDIA) o --extra cpu altrove
-.venv/bin/rizzo devices                           # backend rilevato; su Windows gli eseguibili sono in .venv/Scripts/
+.venv/bin/rizzo devices                           # backend rilevati: mlx, cuda, vulkan, hip, cpu; su Windows gli eseguibili sono in .venv/Scripts/
 .venv/bin/rizzo download                          # pesi (~8 GB) in models/Spark-X2.5-4B
-.venv/bin/pytest -q                               # 41 test, ~1 s, nessun peso richiesto
+.venv/bin/pytest -q                               # unit, nessun peso (~0.4 s); i test MLX e llama si saltano
 .venv/bin/pytest tests/test_compat.py::test_systemone_wire_shape   # test singolo
 .venv/bin/ruff check src tests scripts && .venv/bin/ruff format --check src tests scripts
 .venv/bin/rizzo serve --bits 8                    # API + playground su 127.0.0.1:8017
@@ -33,6 +33,16 @@ uv sync --extra mlx --extra test --locked        # setup Apple; --extra cuda (NV
 .venv/bin/rizzo evaluate benchmarks/smoke.jsonl --compare-modes --output results/local-x.json
 .venv/bin/rizzo schema > request.schema.json      # rigenerare dopo modifiche a schema.py
 .venv/bin/python scripts/validate_checkpoint.py --bits 8 --output results/local-validation
+
+# Backend llama.cpp (GPU AMD e altre): niente extra MLX, serve una build di llama.cpp
+export RIZZO_LLAMA_LIB=/percorso/llama.cpp-amd/build/bin
+export RIZZO_MODEL_DIR=/mnt/model-cache/rizzo-flow   # opzionale; default models/
+uv sync --extra llama --extra test --locked        # crea .venv; l'extra llama porta jinja2
+.venv/bin/rizzo download --format gguf --quant q8_0    # GGUF pinnato, sha256 verificato
+.venv/bin/rizzo decide examples/ticket.json --backend llama --quant q8_0
+RIZZO_LLAMA_TEST=1 .venv/bin/pytest -q -m llama    # integrazione reale: libllama + GGUF
+.venv/bin/python scripts/validate_llama.py --gguf /mnt/model-cache/rizzo-flow/Spark-X2.5-4B-Q8_0.gguf \
+  --output results/llama-q8-vulkan-validation
 ```
 
 `.claude/launch.json` definisce il server di anteprima `rizzo-q8` (porta 8017). Caricare il
@@ -41,8 +51,10 @@ e fermare il server prima di misurare tempi.
 
 I test non caricano mai il checkpoint 4B: `test_service.py`/`test_compat.py` usano `FakeBackend`
 + `CharacterTokenizer` (il fake favorisce sempre il secondo candidato); `test_mlx.py` usa la vera
-architettura Spark ridotta con pesi casuali. La verifica sul modello reale si fa a mano (server +
-curl/playground) o con `validate_checkpoint.py`.
+architettura Spark ridotta con pesi casuali; `test_llama_runtime.py`/`test_backend_llama.py`
+usano una lib e un runtime finti. I test che caricano il GGUF reale hanno il marker `llama` e
+sono **opt-in** (`RIZZO_LLAMA_TEST=1`), così `pytest -q` resta veloce. La verifica sul modello
+reale si fa a mano (server + curl/playground) o con `validate_checkpoint.py` / `validate_llama.py`.
 
 ## Architettura (flusso di una richiesta)
 
@@ -50,6 +62,17 @@ curl/playground) o con `validate_checkpoint.py`.
 `backend.SparkBackend.score` → `decisions.decode` → `responses.py` (la risposta è ri-validata
 prima di uscire). `engine.Engine` orchestra tutto sotto un `Lock` (un solo modello residente:
 richieste HTTP concorrenti sono serializzate; il parallelismo è *dentro* la richiesta).
+
+**Due backend, un solo livello decisionale.** `backends.load_backend` sceglie tra
+`backend.SparkBackend` (MLX) e `backend_llama.LlamaBackend` (llama.cpp); `Engine`, `prompts`,
+`decisions`, schema e `compat` non sanno quale sia attivo. Il backend llama è in tre moduli:
+`llama_runtime.py` (ctypes su `libllama`, struct del commit pinnato, batch flat senza padding,
+`llama_memory_seq_cp`/`_seq_rm`, vocab e metadati GGUF), `llama_tokenizer.py` (rende il
+`chat_template.jinja` del GGUF con jinja2 e tokenizza con `llama_tokenize`) e `backend_llama.py`
+(identità/fingerprint e `score`). `--backend auto` sceglie llama se c'è `--gguf`, altrimenti MLX.
+`--ctx` è per-sequenza: il branching duplica la KV, quindi `load` prenota
+`n_ctx = ctx × (batch_size + 1)` e pretende `n_ctx_seq ≥ ctx`; una `seq_cp` fuori da `n_seq_max`
+aborta il processo, perciò il backend rifiuta la combinazione. Dettagli: `docs/llama-amd.md`.
 
 - **Slot a token singolo.** Ogni candidato (opzioni + speciali `__insufficient__`,
   `__below_range__`, `__above_range__`) è una lettera maiuscola A–Z. `prompts.py` verifica che
@@ -271,6 +294,36 @@ CUDA su Linux e l'extra `mlx` dopo queste modifiche **non sono stati provati** (
   richieste + pause di 12 s (prima moriva al primo giro). Resta l'uscita con codice 127 alla
   chiusura di ogni processo CUDA (innocua) — e chi chiama `backend.score` direttamente da thread
   propri di breve vita, fuori da `Engine`, resta esposto.
+
+### Linux + AMD/Vulkan con llama.cpp (21 settembre 2026)
+
+Backend alternativo a MLX per GPU AMD. `spark2_5` è nel mainline di llama.cpp dal
+[PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868) (6 set 2026): qui è pinnata la
+**v0.4.1** (commit `b29c606`), build Vulkan condivisa, e il GGUF **Q8_0** di
+`stornic56/Spark-X2.5-4B-GGUF` (revision e sha256 in `config.GGUF_MODELS`). Tre moduli nuovi:
+`llama_runtime.py` (ctypes su `libllama`), `llama_tokenizer.py` (jinja2 sul template del GGUF),
+`backend_llama.py` (identità e `score`); `backends.load_backend` fa da selettore e il CLI ha
+`--backend/--gguf/--quant`. `Engine`, `prompts`, `decisions`, schema e `compat` non sono cambiati.
+
+- **Il GGUF convertito col fork carica su mainline**: arch `spark2_5`, `ftype Q8_0`, token `A` = 46,
+  tutte le lettere A–Z sono token singoli (46–71). Caricamento ~1.3 s a caldo, ~3.7 s includendo
+  lo sha256 dei 4.4 GB.
+- **`n_ctx` non è una guardia ma una prenotazione**, e `llama_memory_seq_cp` **duplica** la KV:
+  llama.cpp divide il contesto per sequenza. `--ctx` resta per-sequenza; `load` prenota
+  `n_ctx = ctx × (batch_size + 1)` e pretende `n_ctx_seq ≥ ctx`. Una `seq_cp` oltre `n_seq_max`
+  **aborta** il processo (core dump durante lo sviluppo): `from_runtime` rifiuta la combinazione.
+- **Numeri** (RX 7900 XTX, Vulkan, Q8, prompt v3; report in
+  `results/llama-q8-vulkan-validation/`): smoke **0.95** (NLL 0.450, ECE 0.041, 7.19 dec/s,
+  p50 148 ms); ticket shared 0.327 s / 2 batch contro direct 0.379 s / 8, **stesso argmax**.
+  **Non è un confronto di parità cross-backend**: hardware e runtime sono diversi.
+- **Limiti**: niente proiezione selettiva (si proietta tutto il vocabolario), niente picco di
+  memoria (l'API non lo espone), calibrazioni non portabili (fingerprint diverso), `--bits` non
+  applicabile con llama. Runbook: `docs/llama-amd.md`.
+- **Prerequisiti di build** (apt): `glslc`, `libvulkan-dev`, `spirv-headers`, `glslang-tools`;
+  il `cmake` su `PATH` è rotto, si usa `/usr/bin/cmake`. GGUF in `/mnt/model-cache/rizzo-flow`
+  via `RIZZO_MODEL_DIR`, build in `~/git/llama.cpp-amd` via `RIZZO_LLAMA_LIB`.
+- **Test**: 87 unit + 11 skip, 4 integrazione `-m llama` (opt-in con `RIZZO_LLAMA_TEST=1`),
+  ruff pulito.
 
 ### Da fare
 - Lato SemIf del confronto sullo stesso Mac: serve scaricare `Qwen/Qwen3.5-4B` (~9 GB, rev.

@@ -21,16 +21,34 @@ uv sync --locked --extra cuda     # Windows o Linux con GPU NVIDIA (driver CUDA 
 uv sync --locked --extra cpu      # Windows o Linux senza GPU: molto lento, ultima spiaggia
 source .venv/bin/activate         # macOS / Linux
 .venv\Scripts\activate           # Windows
-rizzo devices                     # mostra il backend rilevato: mlx, cuda o cpu
+rizzo devices                     # backend rilevati: mlx, cuda, vulkan, hip, cpu
 rizzo download
 rizzo decide examples/ticket.json
 rizzo decide examples/numeric.json --bits 8
-rizzo serve --bits 8              # --device auto|mlx|cuda|cpu, default auto
+rizzo serve --bits 8              # --device auto|mlx|cuda|vulkan|hip|cpu, default auto
 ```
 
 Provato su Apple Silicon (tutti i risultati pubblicati) e su Windows 10 + RTX 5060 Ti. CUDA su
 Linux non è stato provato; il backend CPU installa e passa i test unitari ma nell'unico tentativo
 (i7-7700K, 1.7B a 8 bit) ha impiegato circa 3 minuti per 8 token.
+
+**GPU AMD (e altre supportate da llama.cpp).** MLX non ha un backend AMD: per Radeon c'è un
+secondo backend che parla direttamente con `libllama.so`. Non è un extra: si compila llama.cpp
+una volta con Vulkan (o HIP) e si punta Rizzo Flow alla build. `spark2_5` è nel mainline di
+llama.cpp dal [PR #27868](https://github.com/ggml-org/llama.cpp/pull/27868), quindi non serve un
+fork; qui è pinnata la v0.4.1.
+
+```bash
+export RIZZO_LLAMA_LIB=/percorso/llama.cpp/build/bin
+uv sync --locked --extra llama
+rizzo download --format gguf --quant q8_0
+rizzo decide examples/ticket.json --backend llama --quant q8_0
+```
+
+`--backend auto` sceglie llama.cpp se si passa `--gguf`, altrimenti MLX; `--bits` vale solo per
+MLX (con llama.cpp si sceglie un GGUF già quantizzato). Provato su Linux + RX 7900 XTX via Vulkan
+(Q8_0): smoke 0.95, 7.19 decisioni/s, p50 148 ms. Guida completa, dimensionamento del contesto
+(`--ctx` è per-sequenza) e limiti: [llama-amd.md](llama-amd.md).
 
 Il download richiede circa 8 GB. Il modello viene salvato in `models/Spark-X2.5-4B`.
 BF16 è la precisione predefinita; `--bits 8` e `--bits 4` quantizzano i pesi in memoria.
