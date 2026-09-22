@@ -5,6 +5,9 @@ with the scope SemIf documents: warm model; prompt construction, tokenization, f
 and CPU readout included; model loading and file writes excluded. Each system keeps its own
 prompt and model, so this compares complete systems, not checkpoints in isolation.
 
+SemIf's fixtures and its `evaluate.py` own their own shapes, and gold rows are handed back
+to that evaluator untouched, so rows stay dictionaries on this side of the boundary.
+
   .venv/bin/python scripts/semif_compare.py --system rizzo --semif /path/SemIf --output results/x
   .venv/bin/python scripts/semif_compare.py --system rizzo --backend mlx --bits 8 ...
   /path/semif-venv/bin/python scripts/semif_compare.py --system semif --semif /path/SemIf
@@ -19,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 
 
-def read(path):
+def read(path: Path) -> list[dict]:
     return [
         json.loads(line)
         for line in Path(path).read_text(encoding="utf-8").splitlines()
@@ -27,13 +30,31 @@ def read(path):
     ]
 
 
-def write(path, value):
+def write(path: Path, value: list | dict) -> None:
     # Create-only, like every other benchmark artifact in this project.
     with Path(path).open("x", encoding="utf-8") as stream:
         if isinstance(value, list):
             stream.writelines(json.dumps(row, allow_nan=False) + "\n" for row in value)
         else:
             stream.write(json.dumps(value, indent=2, allow_nan=False) + "\n")
+
+
+def dev_groups(rows: list[dict]) -> set[str]:
+    """Source groups the v3 prompt was chosen on: inside each family, every other one.
+
+    `prompt_lab.py` splits dev from held-out with this and `semif_report.py` scores the
+    half that is left, so the two must agree on it down to the ordering.
+    """
+    families = defaultdict(set)
+    for row in rows:
+        families[row["family"]].add(row["group_id"])
+    return {g for groups in families.values() for i, g in enumerate(sorted(groups)) if i % 2 == 0}
+
+
+def chosen(prediction: dict) -> str:
+    """Semantic option ID this prediction puts first."""
+    probabilities = prediction["probabilities"]
+    return prediction["option_ids"][probabilities.index(max(probabilities))]
 
 
 class MlxMemory:
@@ -81,32 +102,38 @@ class Rizzo:
             batch_size=args.batch_size,
         )
         self.engine = Engine(backend)
-        self.metadata = {**backend.metadata, "batch_size": args.batch_size}
+        self.metadata = {**backend.metadata.as_dict(), "batch_size": args.batch_size}
         self.memory = MlxMemory() if args.backend == "mlx" else LlamaMemory(backend)
 
-    def _run(self, rows, mode):
-        questions = {
-            row["id"]: {
-                "type": "choice",
-                "instructions": row["question"],
-                # Fixture options already include their own `insufficient` where relevant.
-                "policy": {"allow_abstain": False},
-                "options": [
-                    {"id": f"o{index}", "description": option["description"]}
-                    for index, option in enumerate(row["options"])
-                ],
-            }
-            for row in rows
-        }
-        response = self.engine.decide(
-            {"state": rows[0]["state"], "questions": questions, "mode": mode}
+    def _run(self, rows: list[dict], mode: str) -> list[dict]:
+        # Imported here like every other rizzo import in this class: with `--system semif`
+        # the script runs from SemIf's own virtualenv, where rizzo_flow is not installed.
+        from rizzo_flow.schema import ChoiceQuestion, Option, Policy, Request
+
+        request = Request(
+            state=rows[0]["state"],
+            mode=mode,
+            questions={
+                row["id"]: ChoiceQuestion(
+                    type="choice",
+                    instructions=row["question"],
+                    # Fixture options already include their own `insufficient` where relevant.
+                    policy=Policy(allow_abstain=False),
+                    options=[
+                        Option(id=f"o{index}", description=option["description"])
+                        for index, option in enumerate(row["options"])
+                    ],
+                )
+                for row in rows
+            },
         )
+        answers = self.engine.decide(request).answers
         return [
             {
                 "id": row["id"],
                 "option_ids": [option["id"] for option in row["options"]],
-                "probabilities": list(response["answers"][row["id"]]["probabilities"].values()),
-                "input_tokens": response["answers"][row["id"]]["input_tokens"],
+                "probabilities": list(answers[row["id"]].probabilities.values()),
+                "input_tokens": answers[row["id"]].input_tokens,
             }
             for row in rows
         ]
@@ -135,7 +162,7 @@ class SemIf:
         return self.backend.score_shared(self.model, self.tokenizer, rows, self.metadata)[0]
 
 
-def latency(seconds):
+def latency(seconds: list[float]) -> dict:
     ordered = sorted(seconds)
     return {
         "calls": len(ordered),
@@ -146,11 +173,8 @@ def latency(seconds):
     }
 
 
-def stability(evaluate, gold, base, perturb_gold, perturbed):
+def stability(evaluate, gold: list[dict], base, perturb_gold: list[dict], perturbed) -> dict:
     """Single-system version of SemIf's `evaluate_perturbations.py` (same definitions)."""
-
-    def chosen(row):
-        return row["option_ids"][row["probabilities"].index(max(row["probabilities"]))]
 
     def headline(result):
         return {
@@ -198,12 +222,12 @@ def stability(evaluate, gold, base, perturb_gold, perturbed):
     return report
 
 
-def slim(prediction):
+def slim(prediction: dict) -> dict:
     keep = ("id", "option_ids", "probabilities", "option_logits", "input_tokens")
     return {key: prediction[key] for key in keep if key in prediction}
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--system", choices=("rizzo", "semif"), required=True)
     parser.add_argument("--semif", type=Path, required=True, help="SemIf repository checkout")
@@ -284,9 +308,9 @@ def main():
         predictions, seconds = [], []
         for index, group in enumerate(selected):
             mark = time.perf_counter()
-            scored = run(group)
+            answered = run(group)
             seconds.append(time.perf_counter() - mark)
-            predictions.extend(slim(p) for p in scored)
+            predictions.extend(slim(p) for p in answered)
             print(f"shape/{mode}: {index + 1}/{len(selected)} {seconds[-1]:.2f}s", flush=True)
         runs[mode] = predictions
         report["shape"][mode] = {

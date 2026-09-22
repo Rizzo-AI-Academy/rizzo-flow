@@ -7,6 +7,7 @@ recorded months ago and demand the same hash and the same JSON back.
 """
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -78,3 +79,17 @@ def test_report_survives_the_round_trip_unchanged(name):
     assert json.dumps(EvaluationReport.model_validate(recorded).model_dump()) == json.dumps(
         recorded
     )
+
+
+def test_the_comparison_script_reproduces_its_recorded_output():
+    """scripts/compare_reports.py rebuilt results/precision-comparison.json, exactly."""
+    sys.path.insert(0, str(REPORTS.parents[1] / "scripts"))
+    from compare_reports import compare, read_report
+
+    results = REPORTS.parent
+    recorded = json.loads((results / "precision-comparison.json").read_text(encoding="utf-8"))
+    rebuilt = compare(
+        read_report(results / "spark-bf16-final" / "smoke.json"),
+        read_report(results / "spark-q8-final" / "smoke.json"),
+    ).as_dict()
+    assert json.dumps(rebuilt) == json.dumps(recorded)

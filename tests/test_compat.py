@@ -1,6 +1,6 @@
 import pytest
+from fakes import FakeBackend
 from fastapi.testclient import TestClient
-from test_service import FakeBackend
 
 from rizzo_flow.api import create_app
 from rizzo_flow.compat import SystemOneRequest, confidence, to_native
