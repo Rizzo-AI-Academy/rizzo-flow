@@ -9,6 +9,7 @@
 //! Backend (`llama` feature), calibration and HTTP serve follow in F1/F2.
 
 pub mod calibration;
+pub mod chat_format;
 pub mod compat;
 pub mod decisions;
 pub mod evaluate;

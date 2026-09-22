@@ -81,11 +81,20 @@ runtime predefinito (dopo la PR #1 di un contributore). La differenza di questo 
 di runtime prebuilt, e l'apparato di verifica (`parity/`, `calibration/pilot/`, REPORT.md).
 Funziona con **qualsiasi GGUF** supportato dal llama.cpp incorporato.
 
-**Limite attuale, dichiarato**: il port **non carica ancora Spark-X2.5** (l'architettura
-`spark2_5` è più recente del llama.cpp incorporato nella crate Rust `llama-cpp-2` 0.1.156,
-la più recente disponibile; il progetto originale usa la release b11081). Serve una crate
-con un llama.cpp ≥ b11081. Il codice è agnostico rispetto al modello: quando la dipendenza
-avanza, Spark gira senza modifiche. Dettagli in [REPORT.md](REPORT.md) §3.8 e §5.1.
+**Spark-X2.5 gira, ed è verificato**: era il modello del progetto che questo port non
+riusciva a caricare. Due blocchi, entrambi risolti e misurati ([REPORT.md](REPORT.md) §3.11):
+la **dipendenza** (binding vendorizzato su llama.cpp **b11081**, con tre adattamenti
+documentati nel wrapper C++) e il **formato del prompt** (`llama_chat_apply_template` rende
+solo i template che riconosce; quello di Spark usa costrutti solo-HuggingFace, quindi il port
+ora lo rende nativamente in `src/chat_format.rs`). Risultato: **`prompt_sha256` identico
+6/6** e **risposte identiche 6/6** al riferimento, con delta massimo sulle probabilità
+4,06e-02 (sono due conversioni dello stesso modello: GGUF Q8_0 contro MLX bits=8).
+
+La ricetta è riproducibile: `tools/vendor_llama_cpp.sh`. La parità a parità di modello è
+verificata da `parity/run_same_model.sh` (Livello C).
+
+Resta una cautela onesta: la soluzione richiede un binding **patchato** — la crate ufficiale,
+così com'è consegnata qui, non carica ancora `spark2_5`.
 
 Le differenze di contratto sono **solo** quelle dichiarate (identità del modello e
 contatori di timing specifici del backend) — vedi `parity/README.md`.

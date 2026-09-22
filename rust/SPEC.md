@@ -203,6 +203,11 @@ Regola di casa: ogni numero pubblicato con macchina, precisione e caveat.
 - [x] **NOTICE + README** con numeri misurati e cosa è portato / cosa manca.
 - [x] **Report di verifica strutturato** — [REPORT.md](REPORT.md): metodo, evidenze,
       differenze dichiarate, limiti, riproducibilità.
+- [x] **Spark-X2.5 sul port** (22/09, §3.11 del REPORT): dipendenza risolta (binding
+      vendorizzato su llama.cpp b11081, tre adattamenti nel wrapper) + formato reso
+      nativamente (`src/chat_format.rs`, `--chat-template`). Verificato: `prompt_sha256`
+      identico 6/6 e risposte identiche 6/6 al riferimento. Resta da coprire nella suite
+      automatica e da valutare se mantenere il binding patchato.
 - [ ] Dataset etichettato **di dominio** per la calibrazione: il meccanismo e il percorso
       end-to-end sono verificati (`calibration/pilot/`), ma il pilota a 24 righe produce un
       fit degenere (T al bordo, overfitting) → nessuna temperatura usabile in produzione.

@@ -14,6 +14,8 @@
 #   RIZZO_REFERENCE  path of the original Python checkout (default /mnt/disco1/rizzo-flow)
 #   RIZZO_MODEL      GGUF used for layer B
 #   RIZZO_REQUEST    request file used for layer B (default <reference>/rizzo_test_6.json)
+#   RIZZO_FEATURES   cargo features for the binary used by layer B (e.g. cuda, llama);
+#                    without it the binary is not rebuilt, so make sure it is current
 #   PARITY_OUT       output directory (default /tmp/parity)
 set -euo pipefail
 
@@ -60,6 +62,12 @@ if [[ "${1:-}" == "--end-to-end" ]]; then
   # The MLX-CUDA reference aborts during interpreter teardown (after the response has
   # been written: "terminate called without an active exception"). Tolerate the exit
   # status and validate the artefact instead — that is the thing we compare.
+  # Build the *binary* too: Layer A builds only the example (default features), which
+  # does not compile the backend (it is behind `feature = "llama"`), so a stale binary
+  # would silently go unnoticed — this is how a fix once looked like it had failed.
+  if [[ -n "${RIZZO_FEATURES:-}" ]]; then
+    cargo build --release --features "$RIZZO_FEATURES" --manifest-path "$REPO/Cargo.toml" >/dev/null
+  fi
   (cd "$REFERENCE" && PYTHONPATH=src "$PY" "$REPO/parity/python_engine.py" "$REQUEST") \
     > "$OUT/python_decide.json" 2>"$OUT/python_engine.log" || true
   python3 - "$OUT/python_decide.json" <<'PY'

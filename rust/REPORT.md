@@ -237,6 +237,52 @@ esempi per tipo: serve un dataset reale (§5).
 
 ---
 
+### 3.11 Spark-X2.5 sul port, e la parità di valori che sembrava impossibile (22/09/2026)
+
+Il limite dichiarato in §5.1 («il port non può eseguire il modello del progetto») **è stato
+rimosso e verificato**. Erano due blocchi distinti, entrambi risolti.
+
+**1 · La dipendenza.** La crate `llama-cpp-2` 0.1.156 incorpora un llama.cpp precedente
+all'architettura `spark2_5`. Con la crate `llama-cpp-sys-2` **vendorizzata localmente** e i
+sorgenti **llama.cpp b11081** (che contiene `src/models/spark2-5.cpp`), il modello si carica.
+Servono tre adattamenti nel wrapper C++ della crate (deriva di API di circa tre settimane):
+`common_fit_params` ha un parametro nuovo inserito prima di `log_level`;
+`json_schema_to_grammar` vuole il loro `common_json` (`common_json_value` non ha più
+l'overload per nlohmann e i due template `std::map`/`std::unordered_map` lo prendono
+entrambi, quindi è ambiguo); `-std=c++20` è stato provato e non serve.
+
+**2 · Il formato del prompt.** `llama_chat_apply_template` — la funzione che la crate usa —
+rende **solo i template che riconosce** (chatml, llama3, …) e per qualunque altro
+restituisce **-1**. Il template di Spark-X2.5 usa costrutti solo-HuggingFace
+(`raise_exception`, `namespace`, `tojson`) e non è riconosciuto: `apply_chat_template`
+falliva e **il port ripiegava in silenzio** sul testo grezzo, mandando al modello un prompt
+diverso da quello del riferimento (`prompt_sha256` diverso su **6/6**). Il fallback
+silenzioso è un difetto a sé — nascondeva il problema — ed è stato corretto: ora un template
+che non si applica **lo dice**.
+
+La ricetta del binding è riproducibile con un comando: `tools/vendor_llama_cpp.sh`
+(clona llama.cpp al tag pinnato, sostituisce i sorgenti della crate, applica i tre
+adattamenti — idempotente, collaudato).
+
+**Soluzione**: `src/chat_format.rs` rende il formato di Spark nativamente, con marcatori e
+riga di sistema **derivati dal rendering di riferimento** (compreso il system iniettato
+«you are a helpful assistant.» e la chiusura del blocco thinking). Nuova opzione
+`--chat-template <file>`, che accetta un id di formato nativo o un template per llama.cpp.
+
+**Risultato misurato** (Spark-X2.5-4B Q8_0 GGUF su questo port, contro Spark-X2.5-4B
+bits=8 su MLX):
+
+| | |
+|---|---|
+| `prompt_sha256` identico | **6/6** |
+| risposte identiche | **6/6** (NORMA, FATTO, `__insufficient__`, APERTO, false, true) |
+| delta massimo sulle probabilità | **4,06e-02** (per lo più 1e-4 ÷ 1e-5) |
+
+La differenza residua è attesa e dichiarata: sono **due conversioni dello stesso modello**
+(GGUF Q8_0 contro bits=8 di MLX), non due modelli. La parità di *valori* che in §5.1 era
+dichiarata impossibile **è quindi raggiunta** — con il binding vendorizzato descritto qui
+sopra, non con la crate ufficiale così com'è.
+
 ## 4 · Differenze dichiarate (le uniche strutturali)
 
 Tutto il resto — `mode`, l'intera struttura di `answers`, `calibration`, e tutti i campi
@@ -261,19 +307,18 @@ Un client che legge `answers`, `mode`, `calibration` o i campi condivisi di `tim
 
 Li dichiaro per intero: sono la parte che di solito manca.
 
-1. **Il livello B confronta la forma, non i valori — e oggi non può fare altrimenti.**
-   Verificato sui due lati (22/09/2026): il riferimento **accetta solo Spark2.5** — con un
-   controllo esplicito di architettura, «Only the Spark2.5 architecture is supported, not
-   qwen35» — mentre questo port **non carica Spark2.5**: la crate `llama-cpp-2` 0.1.156 (la
-   più recente, 02/09/2026) incorpora una versione di llama.cpp **precedente** al supporto
-   dell'architettura `spark2_5` (il progetto originale usa la release **b11081**). Le due
-   implementazioni, oggi, **non hanno nessun modello in comune**: la parità di *valori* a
-   parità di modello è quindi impossibile da entrambi i lati, non per un difetto del port
-   ma per un divario di dipendenza.
-   **Via d'uscita**: la crate deve incorporare un llama.cpp ≥ b11081 (o linkarne uno di
-   sistema). Il codice del port è agnostico rispetto al modello: quando la dipendenza
-   avanza, Spark gira senza modifiche.
-   La parità dei valori resta dimostrata dove la logica vive: sul core, esatto (§2.A).
+1. **Il livello B confronta la forma, non i valori — ma il muro è caduto.** La suite
+   automatica resta *shape-only* perché il riferimento accetta **solo Spark2.5** (controllo
+   di architettura esplicito, presente in entrambi i suoi backend) e il port, **così come è
+   consegnato**, non lo carica: la crate `llama-cpp-2` 0.1.156 incorpora un llama.cpp
+   precedente all'architettura `spark2_5`. **Però il muro è stato abbattuto e misurato**
+   (§3.11): con il binding vendorizzato a llama.cpp b11081 e il formato nativo, su Spark la
+   parità di *valori* è **6/6 sulle risposte** con `prompt_sha256` identico. Restano due
+   cautele oneste: la soluzione richiede un binding **patchato** (non la crate ufficiale) e
+   il confronto è fra **due conversioni** dello stesso modello (GGUF Q8_0 vs MLX bits=8),
+   non fra due modelli. **Questo percorso è ora coperto** da `parity/run_same_model.sh`
+   (Livello C), che esegue entrambi i motori sullo stesso modello e confronta
+   `prompt_sha256` e risposte: 6/6 e 6/6 al 22/09/2026.
 2. **Un solo modello provato a fondo per le decisioni** (`Qwen3.5-4B-Instruct-SingleTurn`).
    `Qwen2.5-7B` e i tre `LFM2.5` di casa sono stati usati come controprove, non come
    candidati validati.

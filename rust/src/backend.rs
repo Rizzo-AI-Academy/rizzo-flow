@@ -37,7 +37,11 @@ pub struct Scored {
 pub struct LlamaTokenizer<'m> {
     pub model: &'m llama_cpp_2::model::LlamaModel,
     pub template: Option<llama_cpp_2::model::LlamaChatTemplate>,
+    /// A format this port renders itself, when the model's template is not one llama.cpp
+    /// can apply (see `chat_prompt`).
+    pub builtin_format: Option<String>,
 }
+
 
 impl<'m> Tokenizer for LlamaTokenizer<'m> {
     fn encode(&self, text: &str) -> Vec<u32> {
@@ -48,6 +52,14 @@ impl<'m> Tokenizer for LlamaTokenizer<'m> {
     }
 
     fn chat_prompt(&self, system: &str, user: &str) -> String {
+        // Built-in formats. llama.cpp's C API (`llama_chat_apply_template`) only renders
+        // templates it recognises (chatml, llama3, ...): a custom Jinja template returns
+        // -1, so a model whose template is not in that list (Spark-X2.5) cannot be
+        // rendered through it. For those we render the format here, verified against the
+        // reference rendering (see REPORT.md section 3.11).
+        if let Some(format) = &self.builtin_format {
+            return crate::chat_format::render(format, system, user);
+        }
         if let Some(tmpl) = &self.template {
             let messages = match (
                 llama_cpp_2::model::LlamaChatMessage::new("system".into(), system.into()),
@@ -57,8 +69,15 @@ impl<'m> Tokenizer for LlamaTokenizer<'m> {
                 _ => None,
             };
             if let Some(messages) = messages {
-                if let Ok(rendered) = self.model.apply_chat_template(tmpl, &messages, true) {
-                    return rendered;
+                match self.model.apply_chat_template(tmpl, &messages, true) {
+                    Ok(rendered) => return rendered,
+                    // Never silent: a template that fails changes the prompt the model
+                    // sees, which changes the answers. Say it out loud.
+                    Err(error) => eprintln!(
+                        "rizzo: warning: the chat template could not be applied ({error}); \
+                         falling back to plain text. Pass --chat-template with a template \
+                         this llama.cpp can render if the model expects chat markers."
+                    ),
                 }
             }
         }
@@ -107,6 +126,8 @@ pub struct Engine {
     pub metadata: Value,
     n_ctx: u32,
     n_threads: Option<i32>,
+    /// Template supplied by the caller, used instead of the one in the model file.
+    custom_template: Option<String>,
     lock: Mutex<()>,
 }
 
@@ -166,6 +187,7 @@ impl Engine {
         n_ctx: u32,
         n_gpu_layers: u32,
         n_threads: Option<i32>,
+        chat_template: Option<String>,
         calibration: Option<Calibration>,
     ) -> Result<Engine> {
         use llama_cpp_2::model::params::LlamaModelParams;
@@ -217,14 +239,25 @@ impl Engine {
             metadata,
             n_ctx,
             n_threads,
+            custom_template: chat_template,
             lock: Mutex::new(()),
         })
     }
 
     fn tokenizer(&self) -> LlamaTokenizer<'_> {
+        // A caller-supplied value wins: either one of our built-in formats, or a
+        // template llama.cpp knows how to apply.
+        let (template, builtin_format) = match &self.custom_template {
+            Some(text) if crate::chat_format::BUILTIN_FORMATS.contains(&text.trim()) => {
+                (None, Some(text.trim().to_string()))
+            }
+            Some(text) => (llama_cpp_2::model::LlamaChatTemplate::new(text).ok(), None),
+            None => (self.template.clone(), None),
+        };
         LlamaTokenizer {
             model: &self.model,
-            template: self.template.clone(),
+            template,
+            builtin_format,
         }
     }
 
@@ -249,9 +282,7 @@ impl Engine {
         queue_seconds: f64,
         compile_seconds: f64,
     ) -> Result<(Vec<Scored>, Timing)> {
-        use llama_cpp_2::context::params::LlamaContextParams;
         use llama_cpp_2::llama_batch::LlamaBatch;
-        use std::num::NonZeroU32;
 
         let t_infer = std::time::Instant::now();
         let mut logical_input_tokens = 0usize;
@@ -323,9 +354,7 @@ impl Engine {
         queue_seconds: f64,
         compile_seconds: f64,
     ) -> Result<(Vec<Scored>, Timing)> {
-        use llama_cpp_2::context::params::LlamaContextParams;
         use llama_cpp_2::llama_batch::LlamaBatch;
-        use std::num::NonZeroU32;
 
         let t_prefill = std::time::Instant::now();
         // Every batch submitted must fit in n_batch: the prefix *and* the longest suffix.

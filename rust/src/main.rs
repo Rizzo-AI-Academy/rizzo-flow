@@ -18,7 +18,7 @@ use rizzo_flow_rs::prompts::compile_request;
 
 fn usage() -> ! {
     eprintln!(
-        "rizzo-flow-rs\n\nUSAGE:\n  rizzo-rs devices\n  rizzo-rs schema [--response] [--output <file>]\n  rizzo-rs download [--size 4b] [--destination <path>]\n  rizzo-rs calibrate <rows.jsonl> --fingerprint <fp> --output <file>\n  rizzo-rs decide <request.json> [--model <gguf> | --size 4b] [--ctx 8192] [--device auto|gpu|cuda|cpu] [--ngl 99] [--topk N] [--calibration <file>] [--output <file>]\n  rizzo-rs evaluate <fixtures.jsonl> [--model <gguf> | --size 4b] [--repeats 1] [--compare-modes] [--ctx 8192] [--calibration <file>] [--output <file>]\n  rizzo-rs dump <request.json> --model <gguf> [--ctx 8192]\n  rizzo-rs serve [--model <gguf> | --size 4b] [--ctx 8192] [--device auto|gpu|cuda|cpu] [--calibration <file>] [--host 127.0.0.1] [--port 8017] [--api-key <key>]\n\nReference-CLI options accepted for drop-in compatibility:\n  --size <s>       select a pinned checkpoint (default 4b; see `download`)\n  --device <d>     auto|gpu|cuda offload to GPU, cpu does not, mlx is refused\n  --bits <4|8>     accepted and ignored (a GGUF carries its own quantization)\n  --batch-size <n> accepted and ignored (questions are decoded sequentially)\n  --max-tokens     alias of --ctx"
+        "rizzo-flow-rs\n\nUSAGE:\n  rizzo-rs devices\n  rizzo-rs schema [--response] [--output <file>]\n  rizzo-rs download [--size 4b] [--destination <path>]\n  rizzo-rs calibrate <rows.jsonl> --fingerprint <fp> --output <file>\n  rizzo-rs decide <request.json> [--model <gguf> | --size 4b] [--ctx 8192] [--device auto|gpu|cuda|cpu] [--ngl 99] [--topk N] [--calibration <file>] [--chat-template <file>] [--output <file>]\n  rizzo-rs evaluate <fixtures.jsonl> [--model <gguf> | --size 4b] [--repeats 1] [--compare-modes] [--ctx 8192] [--calibration <file>] [--output <file>]\n  rizzo-rs dump <request.json> --model <gguf> [--ctx 8192]\n  rizzo-rs serve [--model <gguf> | --size 4b] [--ctx 8192] [--device auto|gpu|cuda|cpu] [--calibration <file>] [--host 127.0.0.1] [--port 8017] [--api-key <key>]\n\nReference-CLI options accepted for drop-in compatibility:\n  --size <s>       select a pinned checkpoint (default 4b; see `download`)\n  --device <d>     auto|gpu|cuda offload to GPU, cpu does not, mlx is refused\n  --bits <4|8>     accepted and ignored (a GGUF carries its own quantization)\n  --batch-size <n> accepted and ignored (questions are decoded sequentially)\n  --max-tokens     alias of --ctx"
     );
     std::process::exit(2)
 }
@@ -294,6 +294,7 @@ fn calibrate(args: &[String]) {
 }
 
 /// Shared CLI parser for --model/--ctx/--ngl/--topk/--calibration/--host/--port.
+#[cfg(feature = "llama")]
 struct Cli {
     model: Option<String>,
     size: Option<String>,
@@ -307,6 +308,7 @@ struct Cli {
     ngl: Option<u32>,
     topk: u32,
     calibration: Option<String>,
+    chat_template: Option<String>,
     host: String,
     port: u16,
     api_key: Option<String>,
@@ -315,6 +317,7 @@ struct Cli {
     compare_modes: bool,
 }
 
+#[cfg(feature = "llama")]
 fn parse_cli(args: &[String], allow_host: bool) -> Cli {
     let mut cli = Cli {
         model: None,
@@ -330,6 +333,7 @@ fn parse_cli(args: &[String], allow_host: bool) -> Cli {
         ngl: None,
         topk: 0,
         calibration: None,
+        chat_template: None,
         host: "127.0.0.1".to_string(),
         port: 8017,
         api_key: None,
@@ -390,6 +394,10 @@ fn parse_cli(args: &[String], allow_host: bool) -> Cli {
                 i += 1;
                 cli.calibration = args.get(i).cloned();
             }
+            "--chat-template" => {
+                i += 1;
+                cli.chat_template = args.get(i).cloned();
+            }
             "--output" => {
                 i += 1;
                 cli.output = args.get(i).cloned();
@@ -430,6 +438,7 @@ fn parse_cli(args: &[String], allow_host: bool) -> Cli {
 ///
 /// `--model` wins over `--size`+`--quant`; `--ngl` wins over `--device`; `--backend`
 /// must be `llama` (this port has no MLX backend).
+#[cfg(feature = "llama")]
 fn resolve_model_and_ngl(cli: &Cli) -> (String, u32, Option<i32>) {
     if let Some(backend) = cli.backend.as_deref() {
         if let Err(error) = pinned::check_backend(backend) {
@@ -501,6 +510,16 @@ fn load_calibration(cli: &Cli) -> Option<Calibration> {
 }
 
 #[cfg(feature = "llama")]
+/// Read a caller-supplied chat template (used instead of the model's own).
+fn load_chat_template(cli: &Cli) -> Option<String> {
+    let path = cli.chat_template.as_deref()?;
+    Some(std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("rizzo: cannot read chat template {path}: {e}");
+        std::process::exit(1);
+    }))
+}
+
+#[cfg(feature = "llama")]
 fn decide(args: &[String]) {
     let Some(path) = args.first() else { usage() };
     let cli = parse_cli(&args[1..], false);
@@ -513,7 +532,7 @@ fn decide(args: &[String]) {
         eprintln!("invalid JSON: {e}");
         std::process::exit(1);
     });
-    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_calibration(&cli))
+    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_chat_template(&cli), load_calibration(&cli))
         .unwrap_or_else(|e| {
             eprintln!("{e}");
             std::process::exit(1);
@@ -538,7 +557,7 @@ fn evaluate(args: &[String]) {
         eprintln!("{e}");
         std::process::exit(1);
     });
-    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_calibration(&cli))
+    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_chat_template(&cli), load_calibration(&cli))
         .unwrap_or_else(|e| {
             eprintln!("{e}");
             std::process::exit(1);
@@ -574,7 +593,7 @@ fn evaluate(_args: &[String]) {
 fn serve(args: &[String]) {
     let cli = parse_cli(args, true);
     let (model_path, ngl, threads) = resolve_model_and_ngl(&cli);
-    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_calibration(&cli))
+    let engine = Engine::load(&model_path, cli.ctx, ngl, threads, load_chat_template(&cli), load_calibration(&cli))
         .unwrap_or_else(|e| {
             eprintln!("{e}");
             std::process::exit(1);
@@ -780,7 +799,7 @@ fn dump(args: &[String]) {
         std::process::exit(1);
     });
     let template = model.chat_template(None).ok();
-    let tokenizer = rizzo_flow_rs::backend::LlamaTokenizer { model: &model, template };
+    let tokenizer = rizzo_flow_rs::backend::LlamaTokenizer { model: &model, template, builtin_format: None };
     let (prefix, jobs) = compile_request(&tokenizer, &request, ctx as usize).unwrap_or_else(|e| {
         eprintln!("compile: {e}");
         std::process::exit(1);

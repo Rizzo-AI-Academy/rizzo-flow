@@ -68,6 +68,28 @@ informational differences: 100    (values: the models are different by design)
 
 `mode` and `calibration` matched with **no** differences at all.
 
+## Layer C — the same model on both engines (`run_same_model.sh`)
+
+Layer B compares only the *shape*, because the reference runs Spark-X2.5 and the published
+crate cannot load that architecture. With a vendored llama.cpp (REPORT.md §3.11) and the
+built-in Spark format, the **same model** runs on both sides and the *values* can be
+compared:
+
+```bash
+RIZZO_BIN=/path/to/rust/rizzo-flow-rs parity/run_same_model.sh
+```
+
+Measured (22/09/2026, Spark-X2.5-4B Q8_0 GGUF against bits=8 on MLX):
+
+```
+prompts identical : 6/6      (prompt_sha256)
+answers identical : 6/6
+max probability delta: 4.06e-02
+```
+
+The residual probability difference is expected and declared: the two sides run **different
+quantisations of the same model**, not two models.
+
 ## Declared differences (the only structural ones)
 
 Everything else — `mode`, the whole `answers` structure, `calibration`, and all timing
