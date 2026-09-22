@@ -178,8 +178,24 @@ impl Engine {
         let backend = llama_cpp_2::llama_backend::LlamaBackend::init()
             .map_err(|e| ValidationError(format!("backend init: {e}")))?;
         let params = LlamaModelParams::default().with_n_gpu_layers(n_gpu_layers);
-        let model = LlamaModel::load_from_file(&backend, model_path, &params)
-            .map_err(|e| ValidationError(format!("model load: {e}")))?;
+        let model = LlamaModel::load_from_file(&backend, model_path, &params).map_err(|e| {
+            // The binding's error carries no detail (llama.cpp writes its own message to
+            // stderr), so read the architecture from the file to explain the failure.
+            let message = format!("{e}");
+            match crate::gguf::architecture(model_path).as_deref() {
+                Some("spark2_5") => ValidationError(format!(
+                    "model load: {message} — the file declares architecture `spark2_5` \
+                     (Spark-X2.5), which this build's llama.cpp does not support: the \
+                     `llama-cpp-2` crate vendors a llama.cpp older than the Spark support \
+                     (upstream uses release b11081). See REPORT.md §5.1. \
+                     Pass --model with a GGUF this build supports."
+                )),
+                Some(other) => ValidationError(format!(
+                    "model load: {message} — the file declares architecture `{other}`"
+                )),
+                None => ValidationError(format!("model load: {message}")),
+            }
+        })?;
         let template = model.chat_template(None).ok();
         let metadata = model_metadata(model_path, n_gpu_layers, t_start.elapsed().as_secs_f64())?;
         if let Some(cal) = &calibration {
@@ -312,7 +328,15 @@ impl Engine {
         use std::num::NonZeroU32;
 
         let t_prefill = std::time::Instant::now();
-        let ctx_params = self.ctx_params(prefix.len().max(512) as u32);
+        // Every batch submitted must fit in n_batch: the prefix *and* the longest suffix.
+        // Sizing it on the prefix alone aborts llama.cpp on a long question
+        // (GGML_ASSERT(n_tokens_all <= cparams.n_batch)).
+        let longest_suffix = jobs
+            .iter()
+            .map(|job| job.tokens.len().saturating_sub(prefix.len()))
+            .max()
+            .unwrap_or(0);
+        let ctx_params = self.ctx_params(prefix.len().max(longest_suffix).max(512) as u32);
         let mut ctx = self
             .model
             .new_context(&self.backend, ctx_params)

@@ -10,7 +10,7 @@
 > originali 10/10) · backend llama.cpp/CUDA verde · **serve** (`/health`,
 > `/v1/decisions`, `/v1/models`, `/v1/systemone` + auth bearer) · **CLI drop-in**
 > (`devices` `schema` `download` `calibrate` `decide` `evaluate` `serve`) ·
-> **41 test verdi** (locali e sul nodo con CUDA) · parità numerica del fit di
+> **44 test verdi** (locali e sul nodo con CUDA) · parità numerica del fit di
 > calibrazione verificata contro il Python.
 
 ## 1 · Cos'è, e perché
@@ -64,9 +64,9 @@ come **alternativa Rust al runtime Python**. Impegni che ne derivano:
    `test_mlx` 3, `test_runtime` 3. Di questi **20 stanno in moduli portabili** (decisioni,
    compat, servizio) e **6 sono specifici di MLX/runtime** (caricamento del backend MLX e
    risoluzione dei device), non portabili per costruzione: è la differenza di backend
-   dichiarata al punto 4. Questo port copre le aree portabili con **41 test** (10 portati
-   1:1 da `test_decisions` + 6 compat + 7 servizio + 18 unitari su calibrazione, compat,
-   valutazione, I/O e checkpoint pinnati).
+   dichiarata al punto 4. Questo port copre le aree portabili con **44 test** (10 portati
+   1:1 da `test_decisions` + 6 compat + 7 servizio + 21 unitari su calibrazione, compat,
+   valutazione, I/O, GGUF e checkpoint pinnati).
 4. **Differenza dichiarata** — il backend: **llama.cpp/GGUF** al posto di MLX → *multi-modello*
    (qualsiasi GGUF), binario singolo, kernel CUDA maturi. Spark-X2.5 entra quando avrà un GGUF
    (oggi architettura custom, solo MLX).
@@ -184,7 +184,7 @@ Regola di casa: ogni numero pubblicato con macchina, precisione e caveat.
 ## 9 · Criteri di accettazione F1
 
 - [x] `rizzo-flow-rs decide rizzo_test_6.json` → risposte equivalenti o migliori di rizzo-flow (5/6), **in ~1,4 s a freddo**
-- [x] `cargo test` verde (porting dei test chiave di `decisions`/`schema`) — **41 test**
+- [x] `cargo test` verde (porting dei test chiave di `decisions`/`schema`) — **44 test**
 - [x] Build con CUDA sul nodo; funziona con **più GGUF** (LFM2.5 ibrido, Qwen2.5, Qwen3.5)
 - [x] Prefisso in cache: 6 domande < 1,5 s; nessuna regressione sui tipi (score/numeric inclusi)
 - **Parità di contratto**: stesse richieste JSON → stessi campi e stessa semantica

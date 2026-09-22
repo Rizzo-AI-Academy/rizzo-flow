@@ -22,7 +22,7 @@ state non strutturato → decisioni tipizzate con probabilità (`boolean` · `ch
 | contratto TypeSafe (`compat`) | ✅ portato (`noul`/`choice`/`score`, `usage`, `x_rizzo`) |
 | calibrazione | ✅ `fit_temperature` + `calibrate` (parità numerica col Python; percorso end-to-end provato — [calibration/pilot](calibration/pilot/README.md)) |
 | benchmark riproducibile | ✅ `evaluate` (coverage, NLL/Brier/ECE, latenze, confronto modalità) |
-| test | **41 verdi** (locali e sul nodo con CUDA) |
+| test | **44 verdi** (locali e sul nodo con CUDA) |
 | playground/snake/logo (UI dev) | ⬜ non portati (rispondono 501, dichiarato) |
 | etichette multi-token (>26 opzioni), `/metrics` | ⬜ non ancora |
 
@@ -45,7 +45,7 @@ inferenza. Caveat e dettagli in [REPORT.md](REPORT.md).
 
 ```
 parity/run_parity.sh --end-to-end     # parità col riferimento Python (due livelli)
-cargo test                            # 41 test
+cargo test                            # 44 test
 ```
 
 - **Livello A** (core, senza modello): 20/20 casi identici, 515 campi confrontati,

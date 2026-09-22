@@ -12,6 +12,7 @@ pub mod calibration;
 pub mod compat;
 pub mod decisions;
 pub mod evaluate;
+pub mod gguf;
 pub mod jsonio;
 pub mod pinned;
 pub mod prompts;

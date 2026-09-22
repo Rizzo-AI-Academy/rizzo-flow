@@ -23,11 +23,13 @@ Spark-X2.5 on MLX, this port runs a GGUF on llama.cpp — so it compares the *co
 
 ## Layer A — golden vectors
 
-`core_vectors.json` holds 20 cases covering: boolean / choice / score / numeric,
+`core_vectors.json` holds 23 cases covering: boolean / choice / score / numeric,
 abstention winning, out-of-range (`__below_range__` / `__above_range__`),
 `policy.allow_abstain`, `policy.min_top_probability`,
-`policy.max_unavailable_probability`, ties (first maximum wins) and temperatures
-(0.5 / 1.0 / 2.0). Candidate order is documented in the file itself, because both
+`policy.max_unavailable_probability`, ties (first maximum wins), temperatures
+(0.5 / 1.0 / 2.0) and **three cases that must fail** (logit/candidate mismatch,
+temperature 0, temperature negative) — the error messages are compared exactly, so the
+failure behaviour is part of the parity claim, not just the happy path. Candidate order is documented in the file itself, because both
 implementations must agree on it: `boolean=[false,true]` · `choice=options in order` ·
 `score=levels` · `numeric=anchors, __below_range__, __above_range__` · `__insufficient__`
 last when abstention is allowed.
@@ -35,8 +37,8 @@ last when abstention is allowed.
 Latest result (`results/report_core.json`, 22/09/2026):
 
 ```
-cases: 20   matched: 20   with differences: 0
-fields compared: 350 numeric, 165 scalar
+cases: 23   matched: 23   with differences: 0
+fields compared: 350 numeric, 168 scalar
 max numeric delta: 4.44e-16      (double-precision summation order)
 blocking differences: 0
 ```

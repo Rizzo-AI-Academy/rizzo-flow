@@ -19,10 +19,10 @@ affermazione ha sotto un comando o un file che la produce, e ogni limite è dich
 | CLI drop-in | ✅ | `devices` `schema` `download` `calibrate` `decide` `evaluate` `serve` |
 | Server HTTP | ✅ | `/health`, `/v1/decisions`, `/v1/systemone`, `/v1/models`, auth bearer |
 | Contratto TypeSafe (`compat`) | ✅ | `noul`/`choice`/`score`, `usage`, `x_rizzo`; test dedicati |
-| Calibrazione | ✅ | `fit_temperature` + `calibrate`; **parità numerica col Python** e **percorso end-to-end verificato** (pilota, §3.9) |
+| Calibrazione | ✅ | `fit_temperature` + `calibrate`; **parità numerica col Python** e **percorso end-to-end verificato** (pilota, §3.10) |
 | Benchmark riproducibile | ✅ | `evaluate`: coverage, NLL/Brier/ECE, latenze, confronto modalità |
 | Suite di parità | ✅ | due livelli, eseguibile con un comando |
-| Test automatici | ✅ | **41 verdi** (locali e sul nodo con CUDA) |
+| Test automatici | ✅ | **44 verdi** (locali e sul nodo con CUDA) |
 | Documentazione | ✅ | SPEC, README, NOTICE, `parity/README.md`, questo report |
 | Playground/snake/logo (UI dev) | ⬜ | non portati: rispondono `501` (dichiarato, non silenzioso) |
 | Etichette multi-token (>26 opzioni), `/metrics` | ⬜ | non ancora |
@@ -80,8 +80,8 @@ tempi e VRAM misurati, comportamento su modelli **ibridi** (recurrent state).
 ### 3.1 Parità esatta sul core — `parity/results/report_core.json`
 
 ```
-casi: 20        identici: 20        con differenze: 0
-campi confrontati: 350 numerici + 165 scalari = 515
+casi: 23        identici: 23        con differenze: 0
+campi confrontati: 350 numerici + 168 scalari = 518
 delta numerico massimo: 4.44e-16     (ordine di somma in doppia precisione)
 differenze bloccanti: 0
 ```
@@ -108,7 +108,7 @@ fit_temperature         3 dataset: temperature identiche, dataset_sha256 identic
 ### 3.4 Test automatici
 
 ```
-41 test verdi (18 unit + 6 compat + 10 decisions + 7 service)
+44 test verdi (21 unit + 6 compat + 10 decisions + 7 service)
 eseguiti sia in locale sia sul nodo con CUDA
 ```
 
@@ -123,7 +123,10 @@ GET  /playground     501  (UI dev non portata, dichiarato)
 GET  /nope           404
 ```
 
-### 3.6 Prestazioni misurate (RTX 2070 8 GB, `Qwen3.5-4B-Instruct-SingleTurn` Q4_K_M)
+### 3.6 Prestazioni misurate (RTX 2070 8 GB, `Qwen3.5-4B-Instruct-SingleTurn` Q4_K_M, `--ctx 4096`)
+
+> Le misure della tabella sono state prese a **`--ctx 4096`** (il default è poi diventato
+> 8192, allineato al riferimento): senza questo dato la tabella non è riproducibile.
 
 | | valore |
 |---|---|
@@ -179,7 +182,29 @@ Prima di consegnare ho confrontato il port con lo stato **corrente** del progett
 dalla versione di llama.cpp incorporata nella crate Rust), quindi **non può eseguire il
 modello del progetto** finché la dipendenza non avanza.
 
-### 3.9 Il percorso di calibrazione, end-to-end (`calibration/pilot/`)
+### 3.9 Audit interno (22/09/2026) — difetti trovati e risolti
+
+Prima di considerare chiuso il lavoro ho fatto un audit a freddo, verificando ogni
+affermazione con una nuova esecuzione invece che con la memoria. Ha prodotto quattro
+correzioni, tutte riverificate:
+
+| # | difetto trovato | gravità | stato |
+|---|---|---|---|
+| 1 | **`n_batch` dimensionato sul prefisso**: una domanda con suffisso più lungo del batch faceva **abortire il processo** (`GGML_ASSERT(n_tokens_all <= cparams.n_batch)`, exit 134) — in `mode: shared`, che è il **default**; su `serve` una sola richiesta lunga abbatteva il servizio. Lo stesso input in `direct` funzionava, il che ha isolato la causa. | alta | risolto: `n_batch = max(prefisso, suffisso più lungo).max(512)`; riverificato (suffisso 1412 token: exit 0, risposta corretta, 0,51 s) |
+| 2 | **Checkpoint predefinito inutilizzabile con errore criptico**: il default pinnato (Spark-X2.5) non è caricabile e l'errore era `null result from llama cpp`, senza indizi. | media | risolto: l'architettura viene letta **dal file GGUF** (`src/gguf.rs`, fail-open) e l'errore ora spiega il limite noto e indica `--model` |
+| 3 | **Percorsi di errore non coperti**: 0 casi su 20 nei vettori golden producevano un errore, benché il comparatore li confronti. | media | risolto: 3 casi aggiunti (logits disallineati, temperatura 0, temperatura negativa) → **23/23 identici**, messaggi d'errore compresi |
+| 4 | **«`--threads` è reale» non dimostrato**: il valore raggiunge llama.cpp, ma la misura era inconcludente (0,33 vs 0,30 s). Il test che avrebbe dato segnale era **bloccato dal difetto 1**. | bassa | rimisurato dopo il fix 1: input lungo su CPU, **0,54 s (1 thread) vs 0,50 s (4 thread)** — effetto reale ma piccolo su un modello da 0,5 B: l'affermazione ora dice questo, non di più |
+
+Due inesattezze nei documenti sono state corrette: il conteggio dei test (**41 → 44**,
+con il dettaglio aggiornato) e il **`--ctx`** con cui erano state prese le misure (§3.6).
+
+Una nota di metodo: la prima verifica del fix 1 sembrava fallire perché lo script di
+parità compila l'*esempio* con le feature di default, che **non compila affatto il
+backend** (è dietro `feature = "llama"`): stavo misurando un binario stantio. Il fix era
+corretto. Da qui la regola: **verificare che l'artefatto sia quello nuovo** prima di
+concludere che una correzione non funziona.
+
+### 3.10 Il percorso di calibrazione, end-to-end (`calibration/pilot/`)
 
 I test unitari coprono `fit_temperature` in isolamento e la parità ne prova l'identità
 numerica col Python; nessuno dei due risponde alla domanda operativa: *un file di
@@ -255,7 +280,7 @@ Li dichiaro per intero: sono la parte che di solito manca.
 3. **Nessuna calibrazione di dominio — ma nemmeno l'originale ne ha una.** Il *meccanismo*
    è verificato: il fit è numericamente identico al Python e il percorso
    `calibrate → file → decide --calibration` è provato end-to-end su inferenza reale
-   (§3.9), incluso il rifiuto di una calibrazione estranea. Ciò che manca è il **dataset
+   (§3.10), incluso il rifiuto di una calibrazione estranea. Ciò che manca è il **dataset
    etichettato di dominio**: il pilota usa 24 righe etichettate per costruzione, il cui fit
    risulta degenere (T al bordo della griglia, NLL in-sample → 0 = overfitting), quindi
    **nessuna temperatura utilizzabile in produzione** è stata prodotta e non è stata fatta
@@ -308,7 +333,7 @@ Ambiente delle misure:
 Comandi:
 
 ```bash
-cargo test --release --features cuda        # 41 test
+cargo test --release --features cuda        # 44 test
 parity/run_parity.sh --end-to-end           # parità col riferimento Python
 rizzo-flow-rs decide rizzo_test_6.json --model <gguf> --ctx 4096 --ngl 99
 rizzo-flow-rs evaluate fixtures.jsonl --model <gguf> --repeats 2 --compare-modes
