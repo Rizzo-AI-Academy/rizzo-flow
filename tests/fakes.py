@@ -5,7 +5,7 @@ mean importing somebody else's tests.
 """
 
 from rizzo_flow.config import MODEL_ID
-from rizzo_flow.metadata import LlamaMetadata
+from rizzo_flow.metadata import LlamaMetadata, MlxMetadata
 from rizzo_flow.prompts import PROMPT_VERSION
 from rizzo_flow.responses import Timing
 
@@ -54,3 +54,20 @@ class FakeBackend:
             batches=1,
             generated_tokens=0,
         )
+
+
+def throwaway_mlx_metadata() -> MlxMetadata:
+    """Identity for tests that build an MLX backend but never report on it."""
+    return MlxMetadata(
+        source=MODEL_ID,
+        requested_revision="test",
+        runtime_revision="test",
+        source_files={"fake.safetensors": "0" * 64},
+        precision="bf16",
+        quantization_group_size=None,
+        device="cpu",
+        backend="cpu",
+        mlx="test",
+        mlx_lm="test",
+        prompt_version=PROMPT_VERSION,
+    )

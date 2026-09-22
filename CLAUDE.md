@@ -30,7 +30,7 @@ uv sync --extra test --locked                     # llama.cpp non richiede extra
 .venv/bin/rizzo download                          # runtime llama.cpp per questa macchina (runtimes/) + GGUF Q8_0 (~4.4 GB, models/)
 .venv/bin/rizzo download --only runtime --runtime vulkan   # un'altra build; --backend mlx scarica i pesi originali (~8 GB)
 .venv/bin/rizzo devices                           # device visti da llama.cpp e scelta di auto; su Windows gli eseguibili sono in .venv/Scripts/
-.venv/bin/pytest -q                               # 76 test (+4 saltati), ~3 s, nessun peso richiesto
+.venv/bin/pytest -q                               # 77 test (+4 saltati), ~3 s, nessun peso richiesto
 RIZZO_REAL=1 .venv/bin/pytest -q -m integration   # 4 test con runtime e GGUF reali (il più piccolo Q8_0 presente)
 .venv/bin/pytest tests/test_compat.py::test_systemone_wire_shape   # test singolo
 .venv/bin/ruff check src tests scripts && .venv/bin/ruff format --check src tests scripts
@@ -64,9 +64,17 @@ curl/playground) o con `validate_checkpoint.py`.
 
 `schema.py` (contratto Pydantic strict, `extra=forbid`) → `prompts.compile_request` →
 `backend_llama.LlamaBackend.score` (o `backend.SparkBackend.score` con MLX; scelta in
-`loader.load_backend`) → `decisions.decode` → `responses.py` (la risposta è ri-validata
-prima di uscire). `engine.Engine` orchestra tutto sotto un `Lock` (un solo modello residente:
-richieste HTTP concorrenti sono serializzate; il parallelismo è *dentro* la richiesta).
+`loader.load_backend`) → `decisions.decode`, che costruisce direttamente il modello di
+`responses.py` (costruirlo lo valida: niente esce senza controllo). `engine.Engine` orchestra
+tutto sotto un `Lock` e restituisce un `Response`, non un dict: il `.model_dump()` avviene al
+confine (CLI) o lo fa FastAPI (un solo modello residente: richieste HTTP concorrenti sono
+serializzate; il parallelismo è *dentro* la richiesta).
+
+Due moduli di supporto trasversali: `protocols.py` (i `Protocol` che dicono che cosa serve
+davvero a `Engine`, `compile_request` e `LlamaBackend` — backend, tokenizer, sessione llama.cpp,
+callback di progresso: duck typing dichiarato, nessun `isinstance`) e `metadata.py`
+(`MlxMetadata`/`LlamaMetadata`, un record piatto per backend; i campi marcati `fingerprinted()`
+sono quelli su cui si calcola il fingerprint, **rinominarne uno invalida le calibrazioni**).
 
 - **Runtime llama.cpp (tre moduli, nessuna dipendenza Python oltre a `jinja2`).**
   `llama_release.py`: release pinnata (`RELEASE`/`COMMIT`), tabella `PACKAGES` (os, macchina,

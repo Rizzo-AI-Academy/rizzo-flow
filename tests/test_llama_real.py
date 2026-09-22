@@ -33,14 +33,16 @@ def backend():
 
 def test_identity_is_pinned(backend):
     meta = backend.metadata
-    assert meta["runtime"] == "llama.cpp" and meta["llama_cpp_release"] == llama_release.RELEASE
-    assert meta["gguf_source"] and meta["precision"] == "q8_0"
-    assert meta["source"] in {spec.repo for spec in MODELS.values()}
+    assert meta.runtime == "llama.cpp" and meta.llama_cpp_release == llama_release.RELEASE
+    assert meta.gguf_source and meta.precision == "q8_0"
+    assert meta.source in {spec.repo for spec in MODELS.values()}
+    # The fingerprint a calibration file would be bound to.
+    assert meta.as_dict()["fingerprint"] == meta.fingerprint
 
 
 def test_prompt_matches_the_original_checkpoint(backend):
     """Same template text and same token ids as the Hugging Face files, when they are here."""
-    size = next(s for s, spec in MODELS.items() if spec.repo == backend.metadata["source"])
+    size = next(s for s, spec in MODELS.items() if spec.repo == backend.metadata.source)
     original = Path(MODELS[size].path)
     if not (original / "chat_template.jinja").is_file():
         pytest.skip("original checkpoint not downloaded")
@@ -81,12 +83,8 @@ def test_shared_prefix_agrees_with_direct(backend):
     request = json.loads(Path("examples/ticket.json").read_text(encoding="utf-8"))
     shared = engine.decide({**request, "mode": "shared"})
     direct = engine.decide({**request, "mode": "direct"})
-    assert (
-        shared["timing"]["shared_prefix_tokens"] > 0 and shared["timing"]["generated_tokens"] == 0
-    )
-    for key, answer in shared["answers"].items():
-        other = direct["answers"][key]["probabilities"]
-        assert max(answer["probabilities"], key=answer["probabilities"].get) == max(
-            other, key=other.get
-        )
-        assert max(abs(answer["probabilities"][o] - other[o]) for o in other) < 0.05
+    assert shared.timing.shared_prefix_tokens > 0 and shared.timing.generated_tokens == 0
+    for key, answer in shared.answers.items():
+        mine, other = answer.probabilities, direct.answers[key].probabilities
+        assert max(mine, key=mine.get) == max(other, key=other.get)
+        assert max(abs(mine[o] - other[o]) for o in other) < 0.05

@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from rizzo_flow.evaluation import EvaluationReport
+from rizzo_flow.evaluation import EvaluationReport, Summary
 from rizzo_flow.metadata import LlamaMetadata, MlxMetadata
 
 REPORTS = Path(__file__).resolve().parents[1] / "results" / "semif-compare"
@@ -79,6 +79,22 @@ def test_report_survives_the_round_trip_unchanged(name):
     assert json.dumps(EvaluationReport.model_validate(recorded).model_dump()) == json.dumps(
         recorded
     )
+
+
+def test_suite_summaries_survive_the_round_trip_unchanged():
+    """validate_checkpoint.py nests Summary blocks inside summary.json, one per suite.
+
+    `spark-bf16-validation` is left out: it predates `decisions_per_second` and is not a
+    Summary in today's sense at all.
+    """
+    checked = 0
+    for path in sorted(REPORTS.parent.glob("*/summary.json")):
+        if path.parent.name == "spark-bf16-validation":
+            continue
+        for block in json.loads(path.read_text(encoding="utf-8"))["suites"].values():
+            assert json.dumps(Summary.model_validate(block).model_dump()) == json.dumps(block)
+            checked += 1
+    assert checked == 13
 
 
 def test_the_comparison_script_reproduces_its_recorded_output():

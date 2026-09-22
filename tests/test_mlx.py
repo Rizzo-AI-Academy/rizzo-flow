@@ -3,6 +3,7 @@
 import importlib.util
 
 import pytest
+from fakes import throwaway_mlx_metadata
 
 pytestmark = [
     pytest.mark.mlx,
@@ -65,7 +66,9 @@ def test_shared_padding_rotating_cache_and_repeat_are_equivalent(prefix_length):
     class Tokenizer:
         pad_token_id = 0
 
-    backend = SparkBackend(tiny_model(), Tokenizer(), {}, batch_size=3, prefill_chunk=7)
+    backend = SparkBackend(
+        tiny_model(), Tokenizer(), throwaway_mlx_metadata(), batch_size=3, prefill_chunk=7
+    )
     prefix = [4, 5, 6, 7, 8] * (prefix_length // 5 + 1)
     prefix = prefix[:prefix_length]
     jobs = [
@@ -78,7 +81,7 @@ def test_shared_padding_rotating_cache_and_repeat_are_equivalent(prefix_length):
     for key in direct:
         assert shared[key] == pytest.approx(direct[key], abs=2e-4)
         assert repeated[key] == pytest.approx(shared[key], abs=2e-4)
-    assert timing["generated_tokens"] == 0
+    assert timing.generated_tokens == 0 and timing.peak_mlx_bytes is not None
 
 
 def test_branch_does_not_mutate_retained_prefix():
@@ -87,7 +90,7 @@ def test_branch_does_not_mutate_retained_prefix():
     from rizzo_flow.backend import SparkBackend, branch_cache
 
     model = tiny_model()
-    backend = SparkBackend(model, None, {}, prefill_chunk=8)
+    backend = SparkBackend(model, None, throwaway_mlx_metadata(), prefill_chunk=8)
     prefix = backend._prefill([4, 5, 6] * 20)
     before = [[a.tolist() for a in c.state] for c in prefix]
     offsets = [c.offset for c in prefix]
