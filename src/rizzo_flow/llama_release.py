@@ -17,7 +17,10 @@ import sys
 import tarfile
 import urllib.request
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
+
+from .protocols import ProgressCallback
 
 RELEASE = "b11081"
 COMMIT = "161755f29e415e2c33efe906e91843c068efd664"
@@ -27,112 +30,125 @@ RUNTIMES = Path("runtimes")
 # User-facing accelerator families. `vulkan` drives AMD, Intel and NVIDIA GPUs alike.
 ACCELERATORS = ("auto", "metal", "cuda", "vulkan", "rocm", "sycl", "cpu")
 
-# (os, machine, accelerator) -> archives to unpack into one directory, with their sha256.
-PACKAGES = {
+
+@dataclass(frozen=True)
+class Archive:
+    """One release asset of the pinned llama.cpp build, verified against its sha256."""
+
+    name: str
+    sha256: str
+
+    @property
+    def url(self) -> str:
+        return f"{BASE_URL}/{self.name}"
+
+
+# (os, machine, accelerator) -> archives to unpack into one directory.
+PACKAGES: dict[tuple[str, str, str], list[Archive]] = {
     ("darwin", "arm64", "metal"): [
-        (
+        Archive(
             "llama-b11081-bin-macos-arm64.tar.gz",
             "ee4ffbf0e35224a9e4ac1709120a1b5a0e3376594c8a40fab89bb92bd1621434",
         )
     ],
     ("darwin", "x64", "cpu"): [
-        (
+        Archive(
             "llama-b11081-bin-macos-x64.tar.gz",
             "b68056a01648554a9b85ff716b56a7fbf6787ddd8d54c1b76a43cf08c66cb486",
         )
     ],
     ("win32", "x64", "cuda"): [
-        (
+        Archive(
             "llama-b11081-bin-win-cuda-13.4-x64.zip",
             "fefb4d9751d36cbb5b82042729470fddf3a47841aa8c91025cd7de1dc2767e58",
         ),
-        (
+        Archive(
             "cudart-llama-bin-win-cuda-13.4-x64.zip",
             "738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668",
         ),
     ],
     ("win32", "x64", "vulkan"): [
-        (
+        Archive(
             "llama-b11081-bin-win-vulkan-x64.zip",
             "4259a1dda3ef3fcfd8b007a16329d5bdcef07da8f5f95fddd85ff2954263f01a",
         )
     ],
     ("win32", "x64", "rocm"): [
-        (
+        Archive(
             "llama-b11081-bin-win-rocm-10.0-x64.zip",
             "3c6ef7351a0b23f6ff27598893d4c45bb405d508f90bbe0e6a5c7f978c7ba6f8",
         )
     ],
     ("win32", "x64", "sycl"): [
-        (
+        Archive(
             "llama-b11081-bin-win-sycl-x64.zip",
             "95516fec72d62a57e3976399f7cde5e212704705ccf689a9920aef0bf2cea884",
         )
     ],
     ("win32", "x64", "cpu"): [
-        (
+        Archive(
             "llama-b11081-bin-win-cpu-x64.zip",
             "48f13c153946cca8543fd3ab915709ec5f340bfe1f38c687121b3d58f848b7b2",
         )
     ],
     ("win32", "arm64", "cpu"): [
-        (
+        Archive(
             "llama-b11081-bin-win-cpu-arm64.zip",
             "c39f04251c9f92a32e1e936e67a5e77175f469c244ef760305b292b1e6d79a24",
         )
     ],
     ("linux", "x64", "cuda"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-cuda-13.4-x64.tar.gz",
             "71984fb15c371a34e79b773000a712ea6a7ff228e62b6ee6313a7881897ea931",
         ),
-        (
+        Archive(
             "cudart-llama-b11081-bin-ubuntu-cuda-13.4-x64.tar.gz",
             "c86d7a48e65d8bda58f79a288599508c8b0e57e711118c30b8e1228faf7dc898",
         ),
     ],
     ("linux", "arm64", "cuda"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-cuda-13.4-arm64.tar.gz",
             "5258609c6fd99fc6a4a0ca378915cc11a71983927d78a48fe9e0805d9b832225",
         ),
-        (
+        Archive(
             "cudart-llama-b11081-bin-ubuntu-cuda-13.4-arm64.tar.gz",
             "ea54932d0a3d30096340c7bf10b8872ea88750c05bf768396bf7ca38ab682fcc",
         ),
     ],
     ("linux", "x64", "vulkan"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-vulkan-x64.tar.gz",
             "60f576a7b5bc1d0711ad980bb2814ab9885dbe670325842132449e42ab1522b8",
         )
     ],
     ("linux", "arm64", "vulkan"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-vulkan-arm64.tar.gz",
             "b1dd6892173fffdee635061e73f5c99de025ca21e376fa1b628933f0245887f4",
         )
     ],
     ("linux", "x64", "rocm"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-rocm-10.0-x64.tar.gz",
             "e54ba1e83fe4564e952a59deec0669e9281f119aa15d06bec5279256a0bb3094",
         )
     ],
     ("linux", "x64", "sycl"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-sycl-fp16-x64.tar.gz",
             "38afe41c0394b6217ab68263377c436b30b7f1950de03f214879adb7dd42cf77",
         )
     ],
     ("linux", "x64", "cpu"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-x64.tar.gz",
             "1e4afeb3985ff8877c3811b7fa994faf7731fb54ad90ff0b68e96fb0a5493c45",
         )
     ],
     ("linux", "arm64", "cpu"): [
-        (
+        Archive(
             "llama-b11081-bin-ubuntu-arm64.tar.gz",
             "bac885ec719971e4e149369a3172b0e5b6275ec53fece4c9050a9948dee03971",
         )
@@ -184,7 +200,8 @@ def pick(accelerator: str = "auto") -> str:
     if accelerator != "auto":
         if accelerator not in available:
             raise ValueError(
-                f"No {accelerator} package for {'/'.join(host())}; available: {', '.join(available)}"
+                f"No {accelerator} package for {'/'.join(host())}; "
+                f"available: {', '.join(available)}"
             )
         return accelerator
     if "metal" in available:
@@ -236,7 +253,13 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def fetch(url: str, target: Path, sha256: str, progress=None, attempts: int = 5) -> Path:
+def fetch(
+    url: str,
+    target: Path,
+    sha256: str,
+    progress: ProgressCallback | None = None,
+    attempts: int = 5,
+) -> Path:
     """Download to `target` unless a verified copy is already there; never keep a bad file.
 
     Multi-gigabyte transfers get cut: an interrupted download resumes from the bytes already
@@ -303,7 +326,7 @@ def unpack(archive: Path, destination: Path) -> None:
                 bundle.extract(member, destination, filter="data")
 
 
-def install(accelerator: str = "auto", progress=None) -> Path:
+def install(accelerator: str = "auto", progress: ProgressCallback | None = None) -> Path:
     """Download, verify and unpack the pinned runtime for this machine; idempotent."""
     accelerator = pick(accelerator)
     directory = install_dir(accelerator)
@@ -312,8 +335,8 @@ def install(accelerator: str = "auto", progress=None) -> Path:
         return library.parent
     staging = directory.with_name(directory.name + ".partial")
     shutil.rmtree(staging, ignore_errors=True)
-    for name, sha256 in PACKAGES[(*host(), accelerator)]:
-        archive = fetch(f"{BASE_URL}/{name}", RUNTIMES / "downloads" / name, sha256, progress)
+    for asset in PACKAGES[(*host(), accelerator)]:
+        archive = fetch(asset.url, RUNTIMES / "downloads" / asset.name, asset.sha256, progress)
         unpack(archive, staging)
     if find_library(staging) is None:
         raise ValueError(f"{library_name()} not found in the {accelerator} package")

@@ -4,20 +4,27 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
+from .calibration import Calibration
 from .decisions import decode
 from .prompts import compile_request
+from .protocols import ScoringBackend
 from .responses import Response
 from .schema import Request
 
 
 class Engine:
-    def __init__(self, backend, ctx=8192, calibration=None):
+    def __init__(
+        self,
+        backend: ScoringBackend,
+        ctx: int = 8192,
+        calibration: Calibration | None = None,
+    ) -> None:
         if ctx < 1:
             raise ValueError("ctx must be positive")
         self.backend = backend
         self.ctx = ctx
         self.calibration = calibration
-        if calibration and calibration.fingerprint != backend.metadata["fingerprint"]:
+        if calibration and calibration.fingerprint != backend.metadata.fingerprint:
             raise ValueError(
                 "Calibration was fitted for a different model/runtime/prompt configuration"
             )
@@ -27,7 +34,7 @@ class Engine:
         # a thread that ran computations exits.
         self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rizzo-inference")
 
-    def decide(self, request: Request | dict) -> dict:
+    def decide(self, request: Request | dict) -> Response:
         # Re-validate a serialized snapshot, also protecting mutable Pydantic objects.
         request = Request.model_validate(
             request.model_dump() if isinstance(request, Request) else request
@@ -48,19 +55,26 @@ class Engine:
                     if self.calibration
                     else 1.0
                 )
-                answers[job.id] = decode(question, logits[job.id], temperature)
-                answers[job.id]["prompt_sha256"] = job.prompt_sha256
-                answers[job.id]["input_tokens"] = len(job.tokens)
-        response = {
-            "model": self.backend.metadata,
-            "mode": request.mode,
-            "answers": answers,
-            "calibration": self.calibration.model_dump() if self.calibration else None,
-            "timing": {
-                **timing,
-                "queue_seconds": acquired - started,
-                "compile_seconds": encoded - acquired,
-                "total_seconds": time.perf_counter() - started,
-            },
-        }
-        return Response.model_validate(response).model_dump()
+                answers[job.id] = decode(
+                    question,
+                    logits[job.id],
+                    prompt_sha256=job.prompt_sha256,
+                    input_tokens=len(job.tokens),
+                    temperature=temperature,
+                )
+        # Constructing the model validates it, so nothing leaves here unchecked.
+        return Response(
+            model=self.backend.metadata.as_dict(),
+            mode=request.mode,
+            # Typing this as Calibration would close the loop responses -> calibration ->
+            # decisions -> responses; nothing reads the block, so it stays plain JSON.
+            calibration=self.calibration.model_dump() if self.calibration else None,
+            answers=answers,
+            timing=timing.model_copy(
+                update={
+                    "queue_seconds": acquired - started,
+                    "compile_seconds": encoded - acquired,
+                    "total_seconds": time.perf_counter() - started,
+                }
+            ),
+        )

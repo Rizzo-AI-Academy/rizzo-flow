@@ -8,6 +8,7 @@ by value, so a library built from another commit can crash instead of failing cl
 import ctypes
 import os
 import sys
+from collections.abc import Sequence
 from ctypes import (
     POINTER,
     c_bool,
@@ -113,47 +114,58 @@ class Batch(ctypes.Structure):
 
 LOG_CALLBACK = ctypes.CFUNCTYPE(None, c_int, c_char_p, c_void_p)
 
-# name -> (result, arguments). Looked up in libllama first, then in the ggml libraries.
-SIGNATURES = {
-    "llama_log_set": (None, [LOG_CALLBACK, c_void_p]),
-    "llama_backend_init": (None, []),
-    "llama_model_default_params": (ModelParams, []),
-    "llama_context_default_params": (ContextParams, []),
-    "llama_model_load_from_file": (c_void_p, [c_char_p, ModelParams]),
-    "llama_model_free": (None, [c_void_p]),
-    "llama_init_from_model": (c_void_p, [c_void_p, ContextParams]),
-    "llama_free": (None, [c_void_p]),
-    "llama_model_get_vocab": (c_void_p, [c_void_p]),
-    "llama_model_meta_val_str": (c_int32, [c_void_p, c_char_p, c_char_p, c_size_t]),
-    "llama_model_chat_template": (c_char_p, [c_void_p, c_char_p]),
-    "llama_model_size": (c_uint64, [c_void_p]),
-    "llama_vocab_n_tokens": (c_int32, [c_void_p]),
-    "llama_vocab_pad": (c_int32, [c_void_p]),
-    "llama_vocab_eos": (c_int32, [c_void_p]),
-    "llama_tokenize": (
+
+@dataclass(frozen=True)
+class Signature:
+    """One C entry point, as ctypes needs it: return type and argument types."""
+
+    result: type | None
+    arguments: list[type]
+
+
+# Looked up in libllama first, then in the ggml libraries.
+SIGNATURES: dict[str, Signature] = {
+    "llama_log_set": Signature(None, [LOG_CALLBACK, c_void_p]),
+    "llama_backend_init": Signature(None, []),
+    "llama_model_default_params": Signature(ModelParams, []),
+    "llama_context_default_params": Signature(ContextParams, []),
+    "llama_model_load_from_file": Signature(c_void_p, [c_char_p, ModelParams]),
+    "llama_model_free": Signature(None, [c_void_p]),
+    "llama_init_from_model": Signature(c_void_p, [c_void_p, ContextParams]),
+    "llama_free": Signature(None, [c_void_p]),
+    "llama_model_get_vocab": Signature(c_void_p, [c_void_p]),
+    "llama_model_meta_val_str": Signature(c_int32, [c_void_p, c_char_p, c_char_p, c_size_t]),
+    "llama_model_chat_template": Signature(c_char_p, [c_void_p, c_char_p]),
+    "llama_model_size": Signature(c_uint64, [c_void_p]),
+    "llama_vocab_n_tokens": Signature(c_int32, [c_void_p]),
+    "llama_vocab_pad": Signature(c_int32, [c_void_p]),
+    "llama_vocab_eos": Signature(c_int32, [c_void_p]),
+    "llama_tokenize": Signature(
         c_int32,
         [c_void_p, c_char_p, c_int32, POINTER(c_int32), c_int32, c_bool, c_bool],
     ),
-    "llama_token_to_piece": (c_int32, [c_void_p, c_int32, c_char_p, c_int32, c_int32, c_bool]),
-    "llama_n_ctx": (c_uint32, [c_void_p]),
-    "llama_n_batch": (c_uint32, [c_void_p]),
-    "llama_n_seq_max": (c_uint32, [c_void_p]),
-    "llama_get_memory": (c_void_p, [c_void_p]),
-    "llama_memory_clear": (None, [c_void_p, c_bool]),
-    "llama_memory_seq_cp": (None, [c_void_p, c_int32, c_int32, c_int32, c_int32]),
-    "llama_memory_seq_rm": (c_bool, [c_void_p, c_int32, c_int32, c_int32]),
-    "llama_decode": (c_int32, [c_void_p, Batch]),
-    "llama_synchronize": (None, [c_void_p]),
-    "llama_get_logits_ith": (POINTER(c_float), [c_void_p, c_int32]),
-    "ggml_backend_load_all_from_path": (None, [c_char_p]),
-    "ggml_backend_dev_count": (c_size_t, []),
-    "ggml_backend_dev_get": (c_void_p, [c_size_t]),
-    "ggml_backend_dev_name": (c_char_p, [c_void_p]),
-    "ggml_backend_dev_description": (c_char_p, [c_void_p]),
-    "ggml_backend_dev_memory": (None, [c_void_p, POINTER(c_size_t), POINTER(c_size_t)]),
-    "ggml_backend_dev_type": (c_int, [c_void_p]),
-    "ggml_backend_dev_backend_reg": (c_void_p, [c_void_p]),
-    "ggml_backend_reg_name": (c_char_p, [c_void_p]),
+    "llama_token_to_piece": Signature(
+        c_int32, [c_void_p, c_int32, c_char_p, c_int32, c_int32, c_bool]
+    ),
+    "llama_n_ctx": Signature(c_uint32, [c_void_p]),
+    "llama_n_batch": Signature(c_uint32, [c_void_p]),
+    "llama_n_seq_max": Signature(c_uint32, [c_void_p]),
+    "llama_get_memory": Signature(c_void_p, [c_void_p]),
+    "llama_memory_clear": Signature(None, [c_void_p, c_bool]),
+    "llama_memory_seq_cp": Signature(None, [c_void_p, c_int32, c_int32, c_int32, c_int32]),
+    "llama_memory_seq_rm": Signature(c_bool, [c_void_p, c_int32, c_int32, c_int32]),
+    "llama_decode": Signature(c_int32, [c_void_p, Batch]),
+    "llama_synchronize": Signature(None, [c_void_p]),
+    "llama_get_logits_ith": Signature(POINTER(c_float), [c_void_p, c_int32]),
+    "ggml_backend_load_all_from_path": Signature(None, [c_char_p]),
+    "ggml_backend_dev_count": Signature(c_size_t, []),
+    "ggml_backend_dev_get": Signature(c_void_p, [c_size_t]),
+    "ggml_backend_dev_name": Signature(c_char_p, [c_void_p]),
+    "ggml_backend_dev_description": Signature(c_char_p, [c_void_p]),
+    "ggml_backend_dev_memory": Signature(None, [c_void_p, POINTER(c_size_t), POINTER(c_size_t)]),
+    "ggml_backend_dev_type": Signature(c_int, [c_void_p]),
+    "ggml_backend_dev_backend_reg": Signature(c_void_p, [c_void_p]),
+    "ggml_backend_reg_name": Signature(c_char_p, [c_void_p]),
 }
 
 
@@ -192,23 +204,23 @@ class Library:
 
     _loaded: ClassVar[dict[Path, "Library"]] = {}
 
-    def __init__(self, directory: Path):
+    def __init__(self, directory: Path) -> None:
         self.directory = Path(directory).resolve()
         if llama_release.find_library(self.directory) is None:
             raise ValueError(f"{llama_release.library_name()} not found in {self.directory}")
         self._handles = self._open()
-        for name, (result, arguments) in SIGNATURES.items():
+        for name, signature in SIGNATURES.items():
             function = next((getattr(h, name) for h in self._handles if hasattr(h, name)), None)
             if function is None:
                 raise ValueError(
                     f"{self.directory}: symbol {name} is missing; the runtime must be llama.cpp "
                     f"{llama_release.RELEASE} ({llama_release.COMMIT[:7]})"
                 )
-            function.restype, function.argtypes = result, arguments
+            function.restype, function.argtypes = signature.result, signature.arguments
             setattr(self, name, function)
         verbose = os.environ.get(LOG_ENV) == "1"
 
-        def log(level, text, _):
+        def log(level: int, text: bytes, _: object) -> None:
             # Warnings and errors only; level 5 continues a line that was probably dropped.
             # The full-size window cache is our own choice (see Session.load), not news.
             if verbose or (
@@ -230,7 +242,7 @@ class Library:
             cls._loaded[directory] = cls(directory)
         return cls._loaded[directory]
 
-    def _open(self):
+    def _open(self) -> list[ctypes.CDLL]:
         folder = str(self.directory)
         if sys.platform == "win32":
             # Dependencies of the plug-ins (CUDA runtime, OpenMP) sit in the same folder.
@@ -309,7 +321,17 @@ def choose_device(devices: list[Device], wanted: str) -> Device | None:
 class Session:
     """One model and one context. Sequence 0 holds the shared prefix, the others its branches."""
 
-    def __init__(self, library, model, context, device, n_ctx, n_batch, n_seq_max, idle_free):
+    def __init__(
+        self,
+        library: "Library",
+        model: int,
+        context: int,
+        device: Device | None,
+        n_ctx: int,
+        n_batch: int,
+        n_seq_max: int,
+        idle_free: int | None,
+    ) -> None:
         self.library = library
         self.idle_free = idle_free  # free device memory before the model was loaded
         self.model = model
@@ -383,7 +405,7 @@ class Session:
             idle_free,
         )
 
-    def close(self):
+    def close(self) -> None:
         if self.context:
             self.library.llama_free(self.context)
             self.library.llama_model_free(self.model)
@@ -435,7 +457,13 @@ class Session:
 
     # --- compute --------------------------------------------------------------------------
 
-    def decode(self, tokens, positions, sequences, outputs=()) -> None:
+    def decode(
+        self,
+        tokens: list[int],
+        positions: Sequence[int],
+        sequences: Sequence[int],
+        outputs: Sequence[int] = (),
+    ) -> None:
         """One forward pass over a flat batch; logits are produced only at `outputs` indices."""
         count = len(tokens)
         if not 0 < count <= self.n_batch:

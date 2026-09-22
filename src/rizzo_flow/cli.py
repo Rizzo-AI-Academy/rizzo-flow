@@ -8,7 +8,7 @@ from .llama_release import ACCELERATORS
 from .loader import BACKENDS, DEVICES
 
 
-def write_json(value, destination):
+def write_json(value: object, destination: Path | str | None) -> None:
     text = json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
     if destination:
         path = Path(destination)
@@ -20,7 +20,7 @@ def write_json(value, destination):
         print(text, end="")
 
 
-def read_jsonl(path):
+def read_jsonl(path: Path | str) -> list[dict]:
     return [
         json.loads(line)
         for line in Path(path).read_text(encoding="utf-8").splitlines()
@@ -28,7 +28,7 @@ def read_jsonl(path):
     ]
 
 
-def progress(name, done, total):
+def progress(name: str, done: int, total: int) -> None:
     """One carriage-returned line per file; silent when stderr is not a terminal."""
     if sys.stderr.isatty():
         share = f"{100 * done / total:5.1f}%" if total else f"{done >> 20} MiB"
@@ -37,7 +37,7 @@ def progress(name, done, total):
             sys.stderr.write("\n")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Rizzo Flow — local Spark typed decisions")
     commands = parser.add_subparsers(dest="command", required=True)
     download = commands.add_parser(
@@ -85,7 +85,8 @@ def main():
             dest="ctx",
             type=int,
             default=8192,
-            help="Context limit in tokens per question (state + question); longer inputs are rejected",
+            help="Context limit in tokens per question (state + question); longer inputs "
+            "are rejected",
         )
         p.add_argument("--calibration", type=Path)
         if name == "serve":
@@ -152,14 +153,12 @@ def main():
         calibration = Calibration.from_file(args.calibration) if args.calibration else None
         engine = Engine(backend, ctx=args.ctx, calibration=calibration)
         if args.command == "decide":
-            write_json(engine.decide(request), args.output)
+            write_json(engine.decide(request).model_dump(), args.output)
         elif args.command == "evaluate":
             from .evaluation import evaluate
 
-            write_json(
-                evaluate(engine, read_jsonl(args.input), args.repeats, args.compare_modes),
-                args.output,
-            )
+            report = evaluate(engine, read_jsonl(args.input), args.repeats, args.compare_modes)
+            write_json(report.model_dump(), args.output)
         elif args.command == "serve":
             import uvicorn
 

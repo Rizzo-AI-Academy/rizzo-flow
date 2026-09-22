@@ -6,6 +6,7 @@ import string
 from dataclasses import dataclass
 
 from .decisions import candidates
+from .protocols import Tokenizer
 from .schema import Request
 
 PROMPT_VERSION = "spark-decisions-v3"
@@ -38,13 +39,13 @@ class Compiled:
     prompt_sha256: str
 
 
-def canonical(value) -> str:
+def canonical(value: object) -> str:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     )
 
 
-def render_state(state) -> str:
+def render_state(state: object) -> str:
     """Shared head of the user message; identical for every question, so it is prefilled once."""
     # Free text goes between the tags as is; structured state, or text imitating the closing
     # tag, falls back to JSON inside the tags.
@@ -64,7 +65,9 @@ def render_question(instruction: str, descriptions: list[str]) -> str:
     return f"\n\nQuestion: {instruction}\n\nOptions:\n{options}\n\n{CLOSING}"
 
 
-def compile_request(tokenizer, request: Request, ctx: int) -> tuple[list[int], list[Compiled]]:
+def compile_request(
+    tokenizer: Tokenizer, request: Request, ctx: int
+) -> tuple[list[int], list[Compiled]]:
     state_text = render_state(request.state)
     compiled = []
     state_prefix = None
@@ -88,7 +91,8 @@ def compile_request(tokenizer, request: Request, ctx: int) -> tuple[list[int], l
         tokens = tokenizer.encode(prompt, add_special_tokens=False)
         if not tokens or len(tokens) > ctx:
             raise ValueError(
-                f"Question {key}: {len(tokens)} tokens exceeds the context limit {ctx} (--ctx); no truncation"
+                f"Question {key}: {len(tokens)} tokens exceeds the context limit "
+                f"{ctx} (--ctx); no truncation"
             )
         slots = []
         for letter in string.ascii_uppercase[: len(cs)]:

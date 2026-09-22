@@ -7,13 +7,14 @@ import re
 import tarfile
 import threading
 import zipfile
+from pathlib import Path
 
 import pytest
 
 from rizzo_flow import llama_release as release
 
 
-def at(monkeypatch, system, machine, nvidia=False):
+def at(monkeypatch: pytest.MonkeyPatch, system: str, machine: str, nvidia: bool = False) -> None:
     monkeypatch.setattr(release, "host", lambda: (system, machine))
     monkeypatch.setattr(release, "nvidia_driver", lambda: nvidia)
 
@@ -31,12 +32,14 @@ def at(monkeypatch, system, machine, nvidia=False):
         ("darwin", "x64", False, "cpu"),
     ],
 )
-def test_auto_picks_the_package_for_the_machine(monkeypatch, system, machine, nvidia, expected):
+def test_auto_picks_the_package_for_the_machine(
+    monkeypatch: pytest.MonkeyPatch, system: str, machine: str, nvidia: bool, expected: str
+) -> None:
     at(monkeypatch, system, machine, nvidia)
     assert release.pick("auto") == expected
 
 
-def test_explicit_family_must_exist_for_the_machine(monkeypatch):
+def test_explicit_family_must_exist_for_the_machine(monkeypatch: pytest.MonkeyPatch) -> None:
     at(monkeypatch, "darwin", "arm64")
     with pytest.raises(ValueError, match="No cuda package"):
         release.pick("cuda")
@@ -46,29 +49,29 @@ def test_explicit_family_must_exist_for_the_machine(monkeypatch):
         release.pick("tpu")
 
 
-def test_unknown_machine_is_told_how_to_bring_a_build(monkeypatch):
+def test_unknown_machine_is_told_how_to_bring_a_build(monkeypatch: pytest.MonkeyPatch) -> None:
     at(monkeypatch, "freebsd", "riscv64")
     with pytest.raises(ValueError, match=release.RUNTIME_DIR_ENV):
         release.pick("auto")
 
 
-def test_every_package_is_pinned_by_a_sha256():
+def test_every_package_is_pinned_by_a_sha256() -> None:
     for (system, machine, family), archives in release.PACKAGES.items():
         assert family in release.PREFERENCE, (system, machine, family)
-        for name, sha256 in archives:
-            assert re.fullmatch(r"[0-9a-f]{64}", sha256), name
-            assert name.endswith((".zip", ".tar.gz"))
+        for asset in archives:
+            assert re.fullmatch(r"[0-9a-f]{64}", asset.sha256), asset.name
+            assert asset.name.endswith((".zip", ".tar.gz"))
             # Only the Windows CUDA runtime archive is shared between releases.
-            assert release.RELEASE in name or name.startswith("cudart-llama-bin-win")
+            assert release.RELEASE in asset.name or asset.name.startswith("cudart-llama-bin-win")
 
 
-def archive_zip(path, members):
+def archive_zip(path: Path, members: dict[str, bytes]) -> None:
     with zipfile.ZipFile(path, "w") as bundle:
         for name, data in members.items():
             bundle.writestr(name, data)
 
 
-def archive_tar(path, members):
+def archive_tar(path: Path, members: dict[str, bytes]) -> None:
     with tarfile.open(path, "w:gz") as bundle:
         for name, data in members.items():
             info = tarfile.TarInfo(name)
@@ -76,7 +79,7 @@ def archive_tar(path, members):
             bundle.addfile(info, io.BytesIO(data))
 
 
-def test_tarballs_lose_their_wrapping_folder(tmp_path):
+def test_tarballs_lose_their_wrapping_folder(tmp_path: Path) -> None:
     archive_tar(tmp_path / "a.tar.gz", {"llama-bX/libllama.so": b"1", "llama-bX/sub/x": b"2"})
     archive_tar(tmp_path / "b.tar.gz", {"cudart-bX/libcudart.so.13": b"3"})
     for name in ("a.tar.gz", "b.tar.gz"):
@@ -87,7 +90,7 @@ def test_tarballs_lose_their_wrapping_folder(tmp_path):
     assert found == ["libcudart.so.13", "libllama.so", "sub", "sub/x"]
 
 
-def test_archives_cannot_write_outside_the_destination(tmp_path):
+def test_archives_cannot_write_outside_the_destination(tmp_path: Path) -> None:
     archive_zip(tmp_path / "bad.zip", {"../escaped.dll": b"x"})
     with pytest.raises(ValueError, match="unsafe"):
         release.unpack(tmp_path / "bad.zip", tmp_path / "out")
@@ -97,7 +100,7 @@ def test_archives_cannot_write_outside_the_destination(tmp_path):
     assert not (tmp_path / "escaped.dll").exists() and not (tmp_path / "escaped.so").exists()
 
 
-def test_fetch_verifies_and_never_keeps_a_bad_file(tmp_path):
+def test_fetch_verifies_and_never_keeps_a_bad_file(tmp_path: Path) -> None:
     source = tmp_path / "source.bin"
     source.write_bytes(b"weights")
     good = hashlib.sha256(b"weights").hexdigest()
@@ -112,12 +115,12 @@ def test_fetch_verifies_and_never_keeps_a_bad_file(tmp_path):
     assert release.fetch(source.as_uri(), target, good) == target
 
 
-def test_interrupted_download_resumes_where_it_stopped(tmp_path):
+def test_interrupted_download_resumes_where_it_stopped(tmp_path: Path) -> None:
     payload = bytes(range(256)) * 64
     requests = []
 
     class Flaky(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
+        def do_GET(self) -> None:
             requests.append(self.headers.get("Range"))
             if self.headers.get("Range"):
                 start = int(self.headers["Range"].removeprefix("bytes=").rstrip("-"))
@@ -131,7 +134,7 @@ def test_interrupted_download_resumes_where_it_stopped(tmp_path):
             # The first answer promises everything and delivers a third, then hangs up.
             self.wfile.write(body[: len(body) // 3] if len(requests) == 1 else body)
 
-        def log_message(self, *args):
+        def log_message(self, *args: object) -> None:
             pass
 
     server = http.server.HTTPServer(("127.0.0.1", 0), Flaky)
@@ -145,7 +148,7 @@ def test_interrupted_download_resumes_where_it_stopped(tmp_path):
     assert requests == [None, f"bytes={len(payload) // 3}-"]
 
 
-def test_install_and_locate(tmp_path, monkeypatch):
+def test_install_and_locate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     at(monkeypatch, "win32", "x64", nvidia=False)
     monkeypatch.setattr(release, "library_name", lambda: "llama.dll")
     monkeypatch.setattr(release, "RUNTIMES", tmp_path / "runtimes")
@@ -158,7 +161,9 @@ def test_install_and_locate(tmp_path, monkeypatch):
     for family in ("vulkan", "cpu"):
         name = f"llama-{family}.zip"
         archive_zip(served / name, {"llama.dll": family.encode(), "ggml.dll": b"g"})
-        packages[("win32", "x64", family)] = [(name, release.sha256_file(served / name))]
+        packages[("win32", "x64", family)] = [
+            release.Archive(name, release.sha256_file(served / name))
+        ]
     monkeypatch.setattr(release, "PACKAGES", packages)
     monkeypatch.setattr(release, "BASE_URL", served.as_uri())
     directory = release.install("auto")

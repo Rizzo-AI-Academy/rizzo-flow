@@ -4,13 +4,18 @@ Only the interface matches the public TypeSafe docs. Answers come from the local
 checkpoint: the response `model` field always reports the local model, never a Jev version.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
-from .config import MODEL_ID
+from .metadata import Metadata
 from .prompts import canonical
-from .schema import MAX_SLOTS, Request
+from .responses import Response, Timing
+from .schema import MAX_SLOTS, Option, Policy, Request
+from .schema import BooleanQuestion as NativeBoolean
+from .schema import ChoiceQuestion as NativeChoice
+from .schema import Question as NativeQuestion
+from .schema import ScoreQuestion as NativeScore
 
 LOCAL_ALIAS = "rizzo-latest"
 # Accepted so that clients written for the hosted API work unchanged against localhost.
@@ -57,7 +62,7 @@ class SystemOneRequest(Wire):
     questions: dict[str, WireQuestion] = Field(min_length=1, max_length=64)
 
     @model_validator(mode="after")
-    def nonblank_option_keys(self):
+    def nonblank_option_keys(self) -> Self:
         for question in self.questions.values():
             if isinstance(question, ChoiceQuestion) and any(
                 not key.strip() for key in question.criteria
@@ -66,118 +71,189 @@ class SystemOneRequest(Wire):
         return self
 
 
-def model_name(metadata: dict) -> str:
-    checkpoint = metadata.get("source", MODEL_ID).split("/")[-1].lower()  # spark-x2.5-4b
-    return f"rizzo-{checkpoint}-{metadata.get('precision', 'unknown')}"
+class ModelCard(Wire):
+    name: str
+    description: str
+    release_date: str
 
 
-def resolve_model(requested: str, metadata: dict) -> str:
+class ModelList(Wire):
+    models: list[ModelCard]
+
+
+class NoulResult(Wire):
+    type: Literal["noul"]
+    noul: float
+
+
+class ChoiceResult(Wire):
+    type: Literal["choice"]
+    choice: str
+    probabilities: dict[str, float]
+    confidence: float
+
+
+class ScoreResult(Wire):
+    type: Literal["score"]
+    score: float | None
+    legend: dict[str, str]
+    probabilities: dict[str, float]
+    confidence: float
+
+
+# An explicit union, never the shared base: annotating this with a base class would make
+# Pydantic serialize only the base's fields and drop the rest without a word.
+WireAnswer = Annotated[NoulResult | ChoiceResult | ScoreResult, Field(discriminator="type")]
+
+
+class Usage(Wire):
+    input_tokens: int
+    output_tokens: int
+
+
+class RizzoExtension(Wire):
+    """Outside the TypeSafe contract; their SDKs ignore fields they do not know."""
+
+    timing: Timing
+    probability_status: list[str]
+    fingerprint: str
+
+
+class SystemOneResponse(Wire):
+    model: str
+    answers: dict[str, WireAnswer]
+    usage: Usage
+    x_rizzo: RizzoExtension
+
+
+def model_name(metadata: Metadata) -> str:
+    checkpoint = metadata.source.split("/")[-1].lower()  # spark-x2.5-4b
+    return f"rizzo-{checkpoint}-{metadata.precision}"
+
+
+def resolve_model(requested: str, metadata: Metadata) -> str:
     served = model_name(metadata)
     if requested in (LOCAL_ALIAS, served) or requested.startswith(FOREIGN_PREFIX):
         return served
     raise ValueError(
-        f"Unknown model {requested!r}. Use {LOCAL_ALIAS!r}, {served!r} or a {FOREIGN_PREFIX}* alias."
+        f"Unknown model {requested!r}. Use {LOCAL_ALIAS!r}, {served!r} "
+        f"or a {FOREIGN_PREFIX}* alias."
     )
 
 
-def list_models(metadata: dict) -> dict:
+def list_models(metadata: Metadata) -> ModelList:
     served = model_name(metadata)
-    local = f"Local {metadata.get('source', 'Spark')} scored with typed option logits."
-    return {
-        "models": [
-            {"name": LOCAL_ALIAS, "description": local, "release_date": "2026-09-21"},
-            {"name": served, "description": local, "release_date": "2026-09-21"},
-            {
-                "name": "jev-latest",
-                "description": f"Compatibility alias: answered by {served}, not by TypeSafe Jev.",
-                "release_date": "2026-09-21",
-            },
+    local = f"Local {metadata.source} scored with typed option logits."
+    return ModelList(
+        models=[
+            ModelCard(name=LOCAL_ALIAS, description=local, release_date="2026-09-21"),
+            ModelCard(name=served, description=local, release_date="2026-09-21"),
+            ModelCard(
+                name="jev-latest",
+                description=f"Compatibility alias: answered by {served}, not by TypeSafe Jev.",
+                release_date="2026-09-21",
+            ),
         ]
-    }
+    )
 
 
-def text(value) -> str:
+def text(value: object) -> str:
     return value.strip() if isinstance(value, str) else canonical(value)
+
+
+def no_abstention() -> Policy:
+    """The wire format has no abstention outcome. One policy object per question."""
+    return Policy(allow_abstain=False)
 
 
 def to_native(request: SystemOneRequest) -> tuple[Request, dict[str, list[str]]]:
     """Return the native request and, per choice question, option keys in slot order."""
-    policy = {"allow_abstain": False}  # the wire format has no abstention outcome
-    questions = {}
-    options = {}
+    questions: dict[str, NativeQuestion] = {}
+    options: dict[str, list[str]] = {}
     for key, question in request.questions.items():
-        native = {"instructions": text(question.instructions), "policy": policy}
+        instructions = text(question.instructions)
         if isinstance(question, NoulQuestion):
-            native["type"] = "boolean"
             criteria = question.criteria
+            sides = {}
             if criteria and criteria.true is not None:
-                native["true_description"] = "Yes. " + text(criteria.true)
+                sides["true_description"] = "Yes. " + text(criteria.true)
             if criteria and criteria.false is not None:
-                native["false_description"] = "No. " + text(criteria.false)
+                sides["false_description"] = "No. " + text(criteria.false)
+            questions[key] = NativeBoolean(
+                type="boolean", instructions=instructions, policy=no_abstention(), **sides
+            )
         elif isinstance(question, ChoiceQuestion):
             # Option keys are free-form strings, so native IDs are positional.
             options[key] = list(question.criteria)
-            native["type"] = "choice"
-            native["options"] = [
-                {
-                    "id": f"o{index}",
-                    "description": name if detail is None else f"{name}: {text(detail)}",
-                }
-                for index, (name, detail) in enumerate(question.criteria.items())
-            ]
+            questions[key] = NativeChoice(
+                type="choice",
+                instructions=instructions,
+                policy=no_abstention(),
+                options=[
+                    Option(
+                        id=f"o{index}",
+                        description=name if detail is None else f"{name}: {text(detail)}",
+                    )
+                    for index, (name, detail) in enumerate(question.criteria.items())
+                ],
+            )
         else:
-            native["type"] = "score"
-            native["levels"] = [text(level) for level in question.criteria]
-        questions[key] = native
-    return Request.model_validate({"state": request.state, "questions": questions}), options
+            questions[key] = NativeScore(
+                type="score",
+                instructions=instructions,
+                policy=no_abstention(),
+                levels=[text(level) for level in question.criteria],
+            )
+    return Request(state=request.state, questions=questions), options
 
 
-def confidence(probabilities) -> float:
+def confidence(probabilities: list[float]) -> float:
     """Peak-over-uniform statistic from the public Confidence page; not a calibrated accuracy."""
     count = len(probabilities)
     return max(0.0, min(1.0, (count * max(probabilities) - 1) / (count - 1)))
 
 
 def from_native(
-    request: SystemOneRequest, response: dict, options: dict[str, list[str]], served: str
-) -> dict:
-    answers = {}
+    request: SystemOneRequest,
+    response: Response,
+    options: dict[str, list[str]],
+    metadata: Metadata,
+) -> SystemOneResponse:
+    answers: dict[str, WireAnswer] = {}
     for key, question in request.questions.items():
-        native = response["answers"][key]
-        ps = native["probabilities"]
+        native = response.answers[key]
+        ps = native.probabilities
         if isinstance(question, NoulQuestion):
-            answers[key] = {"type": "noul", "noul": ps["true"]}
+            answers[key] = NoulResult(type="noul", noul=ps["true"])
         elif isinstance(question, ChoiceQuestion):
             named = {name: ps[f"o{index}"] for index, name in enumerate(options[key])}
-            answers[key] = {
-                "type": "choice",
-                "choice": max(named, key=named.get),
-                "probabilities": named,
-                "confidence": confidence(list(named.values())),
-            }
+            answers[key] = ChoiceResult(
+                type="choice",
+                choice=max(named, key=named.get),
+                probabilities=named,
+                confidence=confidence(list(named.values())),
+            )
         else:
-            answers[key] = {
-                "type": "score",
-                "score": native["score"],
-                "legend": {str(i): text(level) for i, level in enumerate(question.criteria)},
-                "probabilities": ps,
-                "confidence": confidence(list(ps.values())),
-            }
-    timing = response["timing"]
-    natives = response["answers"].values()
-    shared = timing.get("shared_prefix_tokens", 0)
-    return {
-        "model": served,
-        "answers": answers,
-        "usage": {
+            answers[key] = ScoreResult(
+                type="score",
+                score=native.score,
+                legend={str(i): text(level) for i, level in enumerate(question.criteria)},
+                probabilities=ps,
+                confidence=confidence(list(ps.values())),
+            )
+    natives = list(response.answers.values())
+    shared = response.timing.shared_prefix_tokens
+    return SystemOneResponse(
+        model=model_name(metadata),
+        answers=answers,
+        usage=Usage(
             # The shared state is evaluated once; nothing is ever generated.
-            "input_tokens": sum(a["input_tokens"] for a in natives) - shared * (len(natives) - 1),
-            "output_tokens": 0,
-        },
-        # Extension outside the TypeSafe contract; their SDKs ignore unknown fields.
-        "x_rizzo": {
-            "timing": timing,
-            "probability_status": sorted({a["probability_status"] for a in natives}),
-            "fingerprint": response["model"].get("fingerprint"),
-        },
-    }
+            input_tokens=sum(a.input_tokens for a in natives) - shared * (len(natives) - 1),
+            output_tokens=0,
+        ),
+        x_rizzo=RizzoExtension(
+            timing=response.timing,
+            probability_status=sorted({a.probability_status for a in natives}),
+            fingerprint=metadata.fingerprint,
+        ),
+    )
