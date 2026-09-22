@@ -1,4 +1,5 @@
 import copy
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -108,7 +109,7 @@ def test_temperature_fit_and_model_binding():
     calibration = fit_temperature(rows, FakeBackend().metadata.fingerprint)
     assert calibration.temperatures["choice"] > 1
     metric = calibration.fit_metrics["choice"]
-    assert metric["fit_nll_after"] < metric["fit_nll_before"]
+    assert metric.fit_nll_after < metric.fit_nll_before
     Engine(FakeBackend(), calibration=calibration)
     calibration.fingerprint = "different"
     with pytest.raises(ValueError, match="different"):
@@ -127,6 +128,8 @@ def test_evaluation_coverage_raw_evidence(payload):
         }
     ]
     report = evaluate(Engine(FakeBackend()), fixtures, compare_modes=True)
-    assert report["summary"]["categorical"]["accuracy"] == 1
-    assert report["summary"]["mode_comparison"]["changed_argmaxes"] == 0
-    assert report["rows"][0]["response"]["timing"]["generated_tokens"] == 0
+    assert report.summary.categorical.accuracy == 1
+    assert report.summary.mode_comparison.changed_argmaxes == 0
+    assert report.rows[0].response.timing.generated_tokens == 0
+    # The report is also a file format: it must survive the round trip to JSON.
+    assert json.loads(json.dumps(report.model_dump()))["summary"]["requests"] == 1

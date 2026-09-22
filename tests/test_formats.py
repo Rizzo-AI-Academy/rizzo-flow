@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from rizzo_flow.evaluation import EvaluationReport
 from rizzo_flow.metadata import LlamaMetadata, MlxMetadata
 
 REPORTS = Path(__file__).resolve().parents[1] / "results" / "semif-compare"
@@ -52,3 +53,28 @@ def test_the_two_backends_report_different_identities():
         "context_cells",
     }
     assert mlx - llama == {"runtime_revision", "quantization_group_size", "mlx", "mlx_lm"}
+
+
+# Reports written by the current response layout. The `*-v2-validation` runs predate it —
+# back then `Answer` declared `type` first — and `spark-bf16-validation` predates
+# `decisions_per_second` entirely, so neither says anything about today's format.
+CURRENT_FORMAT = [
+    "llama-q8_0-cuda-validation/smoke.json",
+    "llama-q8_0-cuda-validation/perturbations.json",
+    "llama-q8_0-cuda-validation/long-state.json",
+    "spark-bf16-final/smoke.json",
+    "spark-bf16-final/perturbations.json",
+    "spark-q8-final/smoke.json",
+    "spark-q8-final/perturbations.json",
+]
+
+
+@pytest.mark.parametrize("name", CURRENT_FORMAT)
+def test_report_survives_the_round_trip_unchanged(name):
+    path = REPORTS.parent / name
+    recorded = json.loads(path.read_text(encoding="utf-8"))
+    assert EvaluationReport.model_validate(recorded).model_dump() == recorded
+    # Key order is part of the file, not only its content.
+    assert json.dumps(EvaluationReport.model_validate(recorded).model_dump()) == json.dumps(
+        recorded
+    )

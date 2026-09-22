@@ -12,15 +12,20 @@ def question(kind="score", **kwargs):
     return Request.model_validate({"state": "Example", "questions": {"q": data}}).questions["q"]
 
 
+def answer(q, logits, temperature=1.0):
+    """decode() with the prompt facts every answer carries; irrelevant to these tests."""
+    return decode(q, logits, prompt_sha256="0" * 64, input_tokens=7, temperature=temperature)
+
+
 def test_score_expected_value_and_polarization():
     q = question(levels=["low", "medium", "high"], policy={"allow_abstain": False})
-    result = decode(q, [math.log(p) for p in [0.05, 0.06, 0.89]])
-    assert result["score"] == pytest.approx(1.84)
-    polar = decode(q, [0, -1000, 0])
-    center = decode(q, [-1000, 0, -1000])
-    assert polar["score"] == center["score"] == 1
-    assert polar["statistics_given_available"]["stddev"] == 1
-    assert center["statistics_given_available"]["stddev"] == 0
+    result = answer(q, [math.log(p) for p in [0.05, 0.06, 0.89]])
+    assert result.score == pytest.approx(1.84)
+    polar = answer(q, [0, -1000, 0])
+    center = answer(q, [-1000, 0, -1000])
+    assert polar.score == center.score == 1
+    assert polar.statistics_given_available.stddev == 1
+    assert center.statistics_given_available.stddev == 0
 
 
 def test_numeric_real_anchors_and_nonuniform_spacing():
@@ -33,10 +38,10 @@ def test_numeric_real_anchors_and_nonuniform_spacing():
         policy={"allow_abstain": False},
     )
     ps = [0.02, 0.10, 0.65, 0.21, 0.02]
-    result = decode(q, [math.log(p) for p in ps] + [-1000, -1000])
-    assert result["value"] == pytest.approx(280600)
-    assert result["unit"] == "EUR"
-    assert sum(result["probabilities"].values()) == pytest.approx(1)
+    result = answer(q, [math.log(p) for p in ps] + [-1000, -1000])
+    assert result.value == pytest.approx(280600)
+    assert result.unit == "EUR"
+    assert sum(result.probabilities.values()) == pytest.approx(1)
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
@@ -67,10 +72,10 @@ def test_numeric_out_of_range_and_insufficient_are_not_clamped():
         (BELOW, "out_of_range"),
         (UNKNOWN, "insufficient_evidence"),
     ]:
-        answer = decode(q, [20 if c.id == candidate else 0 for c in cs])
-        assert answer["status"] == status
-        assert answer["value"] is None
-        assert answer["statistics_given_available"] is None
+        decoded = answer(q, [20 if c.id == candidate else 0 for c in cs])
+        assert decoded.status == status
+        assert decoded.value is None
+        assert decoded.statistics_given_available is None
 
 
 def test_abstention_uses_combined_unavailable_mass():
@@ -79,15 +84,15 @@ def test_abstention_uses_combined_unavailable_mass():
         unit="x",
         anchors=[{"value": 1, "description": "one"}, {"value": 2, "description": "two"}],
     )
-    a = decode(q, list(map(math.log, [0.30, 0.10, 0.20, 0.20, 0.20])))
-    assert a["value"] is None
+    a = answer(q, list(map(math.log, [0.30, 0.10, 0.20, 0.20, 0.20])))
+    assert a.value is None
 
 
 def test_boolean_unknown_is_not_false():
     q = question("boolean")
-    a = decode(q, [0, 0, 20])
-    assert a["value"] is None
-    assert a["status"] == "insufficient_evidence"
+    a = answer(q, [0, 0, 20])
+    assert a.value is None
+    assert a.status == "insufficient_evidence"
 
 
 def test_choice_rejects_duplicate_or_reserved_ids():
@@ -98,13 +103,13 @@ def test_choice_rejects_duplicate_or_reserved_ids():
 
 def test_low_probability_policy():
     q = question("boolean", policy={"allow_abstain": False, "min_top_probability": 0.9})
-    assert decode(q, [0, 0])["status"] == "uncertain"
+    assert answer(q, [0, 0]).status == "uncertain"
 
 
 def test_invalid_shape_and_temperature():
     q = question("boolean")
     with pytest.raises(ValueError):
-        decode(q, [0, 1])
+        answer(q, [0, 1])
     for t in [0, -1, float("nan")]:
         with pytest.raises(ValueError):
             softmax([1, 2], t)

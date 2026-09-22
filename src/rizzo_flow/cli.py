@@ -153,14 +153,12 @@ def main():
         calibration = Calibration.from_file(args.calibration) if args.calibration else None
         engine = Engine(backend, ctx=args.ctx, calibration=calibration)
         if args.command == "decide":
-            write_json(engine.decide(request), args.output)
+            write_json(engine.decide(request).model_dump(), args.output)
         elif args.command == "evaluate":
             from .evaluation import evaluate
 
-            write_json(
-                evaluate(engine, read_jsonl(args.input), args.repeats, args.compare_modes),
-                args.output,
-            )
+            report = evaluate(engine, read_jsonl(args.input), args.repeats, args.compare_modes)
+            write_json(report.model_dump(), args.output)
         elif args.command == "serve":
             import uvicorn
 

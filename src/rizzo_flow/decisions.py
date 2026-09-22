@@ -3,6 +3,15 @@
 import math
 from dataclasses import dataclass
 
+from .responses import (
+    BooleanAnswer,
+    ChoiceAnswer,
+    NumericAnswer,
+    ScoreAnswer,
+    Statistics,
+    TypedAnswer,
+    Uncertainty,
+)
 from .schema import BooleanQuestion, ChoiceQuestion, NumericQuestion, Question, ScoreQuestion
 
 UNKNOWN = "__insufficient__"
@@ -63,11 +72,11 @@ def softmax(logits: list[float], temperature: float = 1.0) -> list[float]:
     return [x / total for x in weights]
 
 
-def summarize(values: list[float], probabilities: list[float]) -> dict:
+def summarize(values: list[float], probabilities: list[float]) -> Statistics:
     mean = math.fsum(v * p for v, p in zip(values, probabilities, strict=True))
     variance = math.fsum(p * (v - mean) ** 2 for v, p in zip(values, probabilities, strict=True))
 
-    def quantile(q):
+    def quantile(q: float) -> float:
         cumulative = 0.0
         for v, p in zip(values, probabilities, strict=True):
             cumulative += p
@@ -75,15 +84,28 @@ def summarize(values: list[float], probabilities: list[float]) -> dict:
                 return v
         return values[-1]
 
-    return {
-        "mean": mean,
-        "stddev": math.sqrt(variance),
-        "median": quantile(0.5),
-        "anchor_quantiles": {"p10": quantile(0.1), "p90": quantile(0.9)},
-    }
+    return Statistics(
+        mean=mean,
+        stddev=math.sqrt(variance),
+        median=quantile(0.5),
+        anchor_quantiles={"p10": quantile(0.1), "p90": quantile(0.9)},
+    )
 
 
-def decode(question: Question, logits: list[float], temperature: float = 1.0) -> dict:
+def decode(
+    question: Question,
+    logits: list[float],
+    *,
+    prompt_sha256: str,
+    input_tokens: int,
+    temperature: float = 1.0,
+) -> TypedAnswer:
+    """Turn the answer-letter logits into the typed answer this question asked for.
+
+    `prompt_sha256` and `input_tokens` describe the prompt these logits came from. They
+    are arguments rather than something the caller patches in afterwards, so an answer is
+    complete the moment it exists.
+    """
     choices = candidates(question)
     if len(logits) != len(choices):
         raise ValueError("Logit count does not match the declared candidates")
@@ -106,42 +128,54 @@ def decode(question: Question, logits: list[float], temperature: float = 1.0) ->
         )
     elif top < question.policy.min_top_probability:
         status = "uncertain"
-    result = {
-        "type": question.type,
+    shared = {
         "status": status,
         "probabilities": distribution,
         "option_logits": {c.id: x for c, x in zip(choices, logits, strict=True)},
         "legend": {c.id: c.description for c in choices},
-        "uncertainty": {
-            "top_probability": top,
-            "entropy_nats": entropy,
-            "concentration": max(0.0, min(1.0, 1 - entropy / math.log(len(ps)))),
-            "unavailable_probability": unavailable,
-        },
+        "uncertainty": Uncertainty(
+            top_probability=top,
+            entropy_nats=entropy,
+            concentration=max(0.0, min(1.0, 1 - entropy / math.log(len(ps)))),
+            unavailable_probability=unavailable,
+        ),
         "probability_status": "uncalibrated_conditional_option_scores"
         if temperature == 1
         else "temperature_scaled_requires_held_out_validation",
         "temperature": temperature,
+        "prompt_sha256": prompt_sha256,
+        "input_tokens": input_tokens,
     }
     conditional = [p / available for _, p in valid] if available > 0 else None
-    if question.type == "choice":
-        result["choice"] = winner if status == "ok" else None
-    elif question.type == "boolean":
-        result["value"] = (winner == "true") if status == "ok" else None
-        result["probability_true_given_available"] = conditional[1] if conditional else None
-    else:
-        values = [c.value for c, _ in valid]
-        stats = summarize(values, conditional) if conditional and status == "ok" else None
-        result["score" if question.type == "score" else "value"] = stats["mean"] if stats else None
-        result["statistics_given_available"] = stats
-        result["values"] = {c.id: c.value for c, _ in valid}
-        result["support"] = [values[0], values[-1]]
-        if question.type == "numeric":
-            result["unit"] = question.unit
-            result["range_probabilities"] = {
-                "below": distribution[BELOW],
-                "above": distribution[ABOVE],
-            }
-        else:
-            result["normalized_score"] = stats["mean"] / values[-1] if stats else None
-    return result
+    if isinstance(question, ChoiceQuestion):
+        return ChoiceAnswer(**shared, type="choice", choice=winner if status == "ok" else None)
+    if isinstance(question, BooleanQuestion):
+        return BooleanAnswer(
+            **shared,
+            type="boolean",
+            value=(winner == "true") if status == "ok" else None,
+            probability_true_given_available=conditional[1] if conditional else None,
+        )
+    values = [c.value for c, _ in valid]
+    stats = summarize(values, conditional) if conditional and status == "ok" else None
+    scale = {
+        "statistics_given_available": stats,
+        "values": {c.id: c.value for c, _ in valid},
+        "support": [values[0], values[-1]],
+    }
+    if isinstance(question, NumericQuestion):
+        return NumericAnswer(
+            **shared,
+            **scale,
+            type="numeric",
+            value=stats.mean if stats else None,
+            unit=question.unit,
+            range_probabilities={"below": distribution[BELOW], "above": distribution[ABOVE]},
+        )
+    return ScoreAnswer(
+        **shared,
+        **scale,
+        type="score",
+        score=stats.mean if stats else None,
+        normalized_score=stats.mean / values[-1] if stats else None,
+    )

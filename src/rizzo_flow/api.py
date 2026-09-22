@@ -47,9 +47,10 @@ def create_app(engine: Engine, api_key: str | None = None) -> FastAPI:
     @app.post("/v1/systemone", dependencies=[Depends(authorize)])
     def systemone(request: SystemOneRequest):
         try:
-            served = resolve_model(request.model, engine.backend.metadata)
+            metadata = engine.backend.metadata
+            resolve_model(request.model, metadata)  # rejects a model this server cannot serve
             native, options = to_native(request)
-            return from_native(request, engine.decide(native), options, served)
+            return from_native(request, engine.decide(native), options, metadata)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 

@@ -1,6 +1,6 @@
 """Public output schema: numeric validity and nullability are checked before returning JSON."""
 
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import Field, model_serializer, model_validator
 
@@ -25,6 +25,9 @@ class Statistics(Strict):
 
 
 class Answer(Strict):
+    #: Name of the field holding the decision itself; only an accepted answer may fill it.
+    PRIMARY: ClassVar[str]
+
     status: Literal["ok", "insufficient_evidence", "out_of_range", "uncertain"]
     probabilities: dict[str, Probability]
     option_logits: dict[str, Finite]
@@ -47,27 +50,29 @@ class Answer(Strict):
             or self.probabilities.keys() != self.legend.keys()
         ):
             raise ValueError("Output candidate mappings must agree")
-        field = (
-            "choice" if hasattr(self, "choice") else "score" if hasattr(self, "score") else "value"
-        )
-        value = getattr(self, field)
-        if (self.status == "ok") != (value is not None):
+        if (self.status == "ok") != (getattr(self, self.PRIMARY) is not None):
             raise ValueError("Only an accepted decision may have a non-null primary value")
         return self
 
 
 class BooleanAnswer(Answer):
+    PRIMARY = "value"
+
     type: Literal["boolean"]
     value: bool | None
     probability_true_given_available: Probability | None
 
 
 class ChoiceAnswer(Answer):
+    PRIMARY = "choice"
+
     type: Literal["choice"]
     choice: str | None
 
 
 class ScoreAnswer(Answer):
+    PRIMARY = "score"
+
     type: Literal["score"]
     score: Finite | None
     normalized_score: Probability | None
@@ -77,6 +82,8 @@ class ScoreAnswer(Answer):
 
 
 class NumericAnswer(Answer):
+    PRIMARY = "value"
+
     type: Literal["numeric"]
     value: Finite | None
     unit: str

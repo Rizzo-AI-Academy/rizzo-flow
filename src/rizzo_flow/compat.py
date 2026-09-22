@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from .metadata import Metadata
 from .prompts import canonical
+from .responses import Response
 from .schema import MAX_SLOTS, Request
 
 LOCAL_ALIAS = "rizzo-latest"
@@ -140,12 +141,15 @@ def confidence(probabilities) -> float:
 
 
 def from_native(
-    request: SystemOneRequest, response: dict, options: dict[str, list[str]], served: str
+    request: SystemOneRequest,
+    response: Response,
+    options: dict[str, list[str]],
+    metadata: Metadata,
 ) -> dict:
     answers = {}
     for key, question in request.questions.items():
-        native = response["answers"][key]
-        ps = native["probabilities"]
+        native = response.answers[key]
+        ps = native.probabilities
         if isinstance(question, NoulQuestion):
             answers[key] = {"type": "noul", "noul": ps["true"]}
         elif isinstance(question, ChoiceQuestion):
@@ -159,26 +163,25 @@ def from_native(
         else:
             answers[key] = {
                 "type": "score",
-                "score": native["score"],
+                "score": native.score,
                 "legend": {str(i): text(level) for i, level in enumerate(question.criteria)},
                 "probabilities": ps,
                 "confidence": confidence(list(ps.values())),
             }
-    timing = response["timing"]
-    natives = response["answers"].values()
-    shared = timing.get("shared_prefix_tokens", 0)
+    natives = list(response.answers.values())
+    shared = response.timing.shared_prefix_tokens
     return {
-        "model": served,
+        "model": model_name(metadata),
         "answers": answers,
         "usage": {
             # The shared state is evaluated once; nothing is ever generated.
-            "input_tokens": sum(a["input_tokens"] for a in natives) - shared * (len(natives) - 1),
+            "input_tokens": sum(a.input_tokens for a in natives) - shared * (len(natives) - 1),
             "output_tokens": 0,
         },
         # Extension outside the TypeSafe contract; their SDKs ignore unknown fields.
         "x_rizzo": {
-            "timing": timing,
-            "probability_status": sorted({a["probability_status"] for a in natives}),
-            "fingerprint": response["model"].get("fingerprint"),
+            "timing": response.timing.model_dump(),
+            "probability_status": sorted({a.probability_status for a in natives}),
+            "fingerprint": metadata.fingerprint,
         },
     }

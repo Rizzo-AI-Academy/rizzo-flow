@@ -522,6 +522,111 @@
       "title": "Statistics",
       "type": "object"
     },
+    "Timing": {
+      "additionalProperties": false,
+      "description": "Seconds and token counts of one request. The two backends count different\npeak-memory figures and the engine's own timings only exist once a request has run,\nso serialization drops whatever is absent instead of emitting nulls.",
+      "properties": {
+        "inference_seconds": {
+          "title": "Inference Seconds",
+          "type": "number"
+        },
+        "prefill_seconds": {
+          "title": "Prefill Seconds",
+          "type": "number"
+        },
+        "shared_prefix_tokens": {
+          "title": "Shared Prefix Tokens",
+          "type": "integer"
+        },
+        "evaluated_tokens_including_padding": {
+          "title": "Evaluated Tokens Including Padding",
+          "type": "integer"
+        },
+        "logical_input_tokens": {
+          "title": "Logical Input Tokens",
+          "type": "integer"
+        },
+        "batches": {
+          "title": "Batches",
+          "type": "integer"
+        },
+        "generated_tokens": {
+          "title": "Generated Tokens",
+          "type": "integer"
+        },
+        "peak_mlx_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Mlx Bytes"
+        },
+        "peak_device_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Device Bytes"
+        },
+        "queue_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queue Seconds"
+        },
+        "compile_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compile Seconds"
+        },
+        "total_seconds": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Seconds"
+        }
+      },
+      "required": [
+        "inference_seconds",
+        "prefill_seconds",
+        "shared_prefix_tokens",
+        "evaluated_tokens_including_padding",
+        "logical_input_tokens",
+        "batches",
+        "generated_tokens"
+      ],
+      "title": "Timing",
+      "type": "object"
+    },
     "Uncertainty": {
       "additionalProperties": false,
       "properties": {
@@ -616,18 +721,7 @@
       "title": "Calibration"
     },
     "timing": {
-      "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "number"
-          },
-          {
-            "type": "integer"
-          }
-        ]
-      },
-      "title": "Timing",
-      "type": "object"
+      "$ref": "#/$defs/Timing"
     }
   },
   "required": [
