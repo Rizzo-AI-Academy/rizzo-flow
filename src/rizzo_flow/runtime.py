@@ -4,6 +4,7 @@ import os
 import sys
 import sysconfig
 import types
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # User-facing names. `gpu` means whichever accelerator this install has.
@@ -63,13 +64,26 @@ def resolve(device: str):
     return mx.gpu, gpu
 
 
-def describe() -> dict:
-    """What `rizzo devices` prints: the backends this install can actually use."""
+@dataclass(frozen=True)
+class MlxReport:
+    """What `rizzo devices` prints about MLX, when MLX is installed at all."""
+
+    mlx_version: str
+    platform: str
+    available: list[str]
+    auto_selects: str
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def describe() -> MlxReport:
+    """The compute backends this install can actually use."""
     mx = import_mlx()
     gpu = accelerator(mx)
-    return {
-        "mlx_version": mx.__version__,
-        "platform": sys.platform,
-        "available": [name for name in (gpu, "cpu") if name],
-        "auto_selects": gpu or "cpu",
-    }
+    return MlxReport(
+        mlx_version=mx.__version__,
+        platform=sys.platform,
+        available=[name for name in (gpu, "cpu") if name],
+        auto_selects=gpu or "cpu",
+    )

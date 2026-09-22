@@ -1,9 +1,18 @@
 """Choose and load the scoring backend: llama.cpp by default, MLX on request."""
 
+# Postponed annotations: llama_cpp pulls in ctypes and the shared libraries, so it stays
+# an import made inside the functions that need it.
+from __future__ import annotations
+
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .config import DEFAULT_QUANT, DEFAULT_SIZE, GGUF, MODELS
 from .protocols import ScoringBackend
+
+if TYPE_CHECKING:
+    from .llama_cpp import Device
 
 BACKENDS = ("llama", "mlx")
 # `auto`, `gpu` and `cpu` work everywhere. The other names ask for one GPU family: `mlx` and
@@ -59,34 +68,66 @@ def load_backend(
     )
 
 
+@dataclass
+class LlamaReport:
+    """The runtime section of `rizzo devices`. The tail is filled in only as far as
+    inspection gets: a machine with no package never reaches `directory` or `devices`."""
+
+    release: str
+    host: str
+    packages: list[str]
+    recommended: str | None
+    installed: list[str]
+    directory: str | None = None
+    devices: list[Device] | None = None
+    auto_selects: str | None = None
+    error: str | None = None
+
+    def as_dict(self) -> dict:
+        report = {
+            "release": self.release,
+            "host": self.host,
+            "packages": self.packages,
+            "recommended": self.recommended,
+            "installed": self.installed,
+        }
+        if self.directory is not None:
+            report["directory"] = self.directory
+        if self.devices is not None:
+            report["devices"] = [device.public() for device in self.devices]
+        if self.auto_selects is not None:
+            report["auto_selects"] = self.auto_selects
+        if self.error is not None:
+            report["error"] = self.error
+        return report
+
+
 def describe() -> dict:
     """What `rizzo devices` prints: the llama.cpp runtime and its devices, and MLX if present."""
     from . import llama_release
     from .llama_cpp import Library, choose_device
 
-    report = {
-        "llama.cpp": {
-            "release": llama_release.RELEASE,
-            "host": "/".join(llama_release.host()),
-            "packages": llama_release.supported(),
-            "recommended": None,
-            "installed": llama_release.installed(),
-        }
-    }
-    section = report["llama.cpp"]
+    llama = LlamaReport(
+        release=llama_release.RELEASE,
+        host="/".join(llama_release.host()),
+        packages=llama_release.supported(),
+        recommended=None,
+        installed=llama_release.installed(),
+    )
     try:
-        section["recommended"] = llama_release.pick("auto")
-        section["directory"] = str(llama_release.locate())
+        llama.recommended = llama_release.pick("auto")
+        llama.directory = str(llama_release.locate())
         devices = Library.open().devices()
         chosen = choose_device(devices, "auto")
-        section["devices"] = [device.public() for device in devices]
-        section["auto_selects"] = chosen.name if chosen else "CPU"
+        llama.devices = devices
+        llama.auto_selects = chosen.name if chosen else "CPU"
     except (ValueError, OSError) as error:
-        section["error"] = str(error)
+        llama.error = str(error)
     try:
         from .runtime import describe as describe_mlx
 
-        report["mlx"] = describe_mlx()
+        mlx = describe_mlx().as_dict()
     except ImportError:
-        report["mlx"] = {"installed": False}
-    return report
+        mlx = {"installed": False}
+    # "llama.cpp" is not a Python identifier, so the key is spelled here, not in a field.
+    return {"llama.cpp": llama.as_dict(), "mlx": mlx}

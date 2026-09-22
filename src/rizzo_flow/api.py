@@ -7,7 +7,15 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from .compat import SystemOneRequest, from_native, list_models, resolve_model, to_native
+from .compat import (
+    ModelList,
+    SystemOneRequest,
+    SystemOneResponse,
+    from_native,
+    list_models,
+    resolve_model,
+    to_native,
+)
 from .engine import Engine
 from .responses import Response
 from .schema import Request
@@ -44,7 +52,11 @@ def create_app(engine: Engine, api_key: str | None = None) -> FastAPI:
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
-    @app.post("/v1/systemone", dependencies=[Depends(authorize)])
+    @app.post(
+        "/v1/systemone",
+        response_model=SystemOneResponse,
+        dependencies=[Depends(authorize)],
+    )
     def systemone(request: SystemOneRequest):
         try:
             metadata = engine.backend.metadata
@@ -54,7 +66,7 @@ def create_app(engine: Engine, api_key: str | None = None) -> FastAPI:
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
-    @app.get("/v1/models", dependencies=[Depends(authorize)])
+    @app.get("/v1/models", response_model=ModelList, dependencies=[Depends(authorize)])
     def models():
         return list_models(engine.backend.metadata)
 
