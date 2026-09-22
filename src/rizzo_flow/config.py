@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from .protocols import ProgressCallback
+
 
 @dataclass(frozen=True)
 class ModelSpec:
@@ -115,7 +117,12 @@ def identify(hidden_size: int | None) -> ModelSpec:
     )
 
 
-def download_gguf(size=DEFAULT_SIZE, quant=DEFAULT_QUANT, destination=None, progress=None):
+def download_gguf(
+    size: str = DEFAULT_SIZE,
+    quant: str = DEFAULT_QUANT,
+    destination: Path | str | None = None,
+    progress: ProgressCallback | None = None,
+) -> Path:
     """Fetch one pinned GGUF file, verified against its sha256."""
     from .llama_release import fetch
 
@@ -123,7 +130,7 @@ def download_gguf(size=DEFAULT_SIZE, quant=DEFAULT_QUANT, destination=None, prog
     return fetch(spec.url, Path(destination) if destination else spec.path, spec.sha256, progress)
 
 
-def download_model(destination=None, size=DEFAULT_SIZE):
+def download_model(destination: Path | str | None = None, size: str = DEFAULT_SIZE) -> str:
     from huggingface_hub import snapshot_download
 
     spec = MODELS[size]

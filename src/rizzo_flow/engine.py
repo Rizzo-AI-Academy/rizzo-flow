@@ -4,20 +4,27 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
+from .calibration import Calibration
 from .decisions import decode
 from .prompts import compile_request
+from .protocols import ScoringBackend
 from .responses import Response
 from .schema import Request
 
 
 class Engine:
-    def __init__(self, backend, ctx=8192, calibration=None):
+    def __init__(
+        self,
+        backend: ScoringBackend,
+        ctx: int = 8192,
+        calibration: Calibration | None = None,
+    ) -> None:
         if ctx < 1:
             raise ValueError("ctx must be positive")
         self.backend = backend
         self.ctx = ctx
         self.calibration = calibration
-        if calibration and calibration.fingerprint != backend.metadata["fingerprint"]:
+        if calibration and calibration.fingerprint != backend.metadata.fingerprint:
             raise ValueError(
                 "Calibration was fitted for a different model/runtime/prompt configuration"
             )
@@ -52,15 +59,16 @@ class Engine:
                 answers[job.id]["prompt_sha256"] = job.prompt_sha256
                 answers[job.id]["input_tokens"] = len(job.tokens)
         response = {
-            "model": self.backend.metadata,
+            "model": self.backend.metadata.as_dict(),
             "mode": request.mode,
             "answers": answers,
             "calibration": self.calibration.model_dump() if self.calibration else None,
-            "timing": {
-                **timing,
-                "queue_seconds": acquired - started,
-                "compile_seconds": encoded - acquired,
-                "total_seconds": time.perf_counter() - started,
-            },
+            "timing": timing.model_copy(
+                update={
+                    "queue_seconds": acquired - started,
+                    "compile_seconds": encoded - acquired,
+                    "total_seconds": time.perf_counter() - started,
+                }
+            ),
         }
         return Response.model_validate(response).model_dump()

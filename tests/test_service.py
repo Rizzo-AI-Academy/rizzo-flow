@@ -5,9 +5,12 @@ from fastapi.testclient import TestClient
 
 from rizzo_flow.api import create_app
 from rizzo_flow.calibration import fit_temperature
+from rizzo_flow.config import MODEL_ID
 from rizzo_flow.engine import Engine
 from rizzo_flow.evaluation import evaluate
-from rizzo_flow.prompts import compile_request
+from rizzo_flow.metadata import LlamaMetadata
+from rizzo_flow.prompts import PROMPT_VERSION, compile_request
+from rizzo_flow.responses import Timing
 from rizzo_flow.schema import Request
 
 
@@ -17,8 +20,8 @@ class CharacterTokenizer:
     pad_token_id = 0
     eos_token_id = 1
 
-    def encode(self, value, **kwargs):
-        return [ord(c) for c in value]
+    def encode(self, text, add_special_tokens=False):
+        return [ord(c) for c in text]
 
     def apply_chat_template(self, messages, **kwargs):
         assert kwargs["enable_thinking"] is False
@@ -29,10 +32,32 @@ class FakeBackend:
     tokenizer = CharacterTokenizer()
 
     def __init__(self):
-        self.metadata = {"fingerprint": "test-only"}
+        self.metadata = LlamaMetadata(
+            source=MODEL_ID,
+            requested_revision="test",
+            gguf_source=None,
+            gguf_revision=None,
+            source_files={"fake.gguf": "0" * 64},
+            precision="q8_0",
+            device="cpu",
+            backend="cpu",
+            runtime="llama.cpp",
+            llama_cpp_release="test",
+            llama_cpp_commit="test",
+            prompt_version=PROMPT_VERSION,
+        )
 
     def score(self, prefix, jobs, mode):
-        return {j.id: [0, 10] + [0] * (len(j.slots) - 2) for j in jobs}, {"generated_tokens": 0}
+        logits = {j.id: [0, 10] + [0] * (len(j.slots) - 2) for j in jobs}
+        return logits, Timing(
+            inference_seconds=0.0,
+            prefill_seconds=0.0,
+            shared_prefix_tokens=len(prefix),
+            evaluated_tokens_including_padding=sum(len(j.tokens) for j in jobs),
+            logical_input_tokens=sum(len(j.tokens) for j in jobs),
+            batches=1,
+            generated_tokens=0,
+        )
 
 
 @pytest.fixture
@@ -80,7 +105,7 @@ def test_api_and_all_input_validation(payload):
 
 def test_temperature_fit_and_model_binding():
     rows = [{"type": "choice", "logits": [0, 8], "label_index": int(i % 2 == 0)} for i in range(20)]
-    calibration = fit_temperature(rows, "test-only")
+    calibration = fit_temperature(rows, FakeBackend().metadata.fingerprint)
     assert calibration.temperatures["choice"] > 1
     metric = calibration.fit_metrics["choice"]
     assert metric["fit_nll_after"] < metric["fit_nll_before"]

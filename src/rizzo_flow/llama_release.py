@@ -20,6 +20,8 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from .protocols import ProgressCallback
+
 RELEASE = "b11081"
 COMMIT = "161755f29e415e2c33efe906e91843c068efd664"
 BASE_URL = f"https://github.com/ggml-org/llama.cpp/releases/download/{RELEASE}"
@@ -251,7 +253,13 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def fetch(url: str, target: Path, sha256: str, progress=None, attempts: int = 5) -> Path:
+def fetch(
+    url: str,
+    target: Path,
+    sha256: str,
+    progress: ProgressCallback | None = None,
+    attempts: int = 5,
+) -> Path:
     """Download to `target` unless a verified copy is already there; never keep a bad file.
 
     Multi-gigabyte transfers get cut: an interrupted download resumes from the bytes already
@@ -318,7 +326,7 @@ def unpack(archive: Path, destination: Path) -> None:
                 bundle.extract(member, destination, filter="data")
 
 
-def install(accelerator: str = "auto", progress=None) -> Path:
+def install(accelerator: str = "auto", progress: ProgressCallback | None = None) -> Path:
     """Download, verify and unpack the pinned runtime for this machine; idempotent."""
     accelerator = pick(accelerator)
     directory = install_dir(accelerator)

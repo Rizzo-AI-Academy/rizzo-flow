@@ -8,7 +8,10 @@ import time
 from pathlib import Path
 
 from .config import RUNTIME_REVISION, identify
-from .prompts import PROMPT_VERSION, Compiled, canonical
+from .metadata import MlxMetadata
+from .prompts import PROMPT_VERSION, Compiled
+from .protocols import Tokenizer
+from .responses import Timing
 from .runtime import resolve
 
 
@@ -65,7 +68,14 @@ def branch_cache(prefix_cache, batch_size):
 
 
 class SparkBackend:
-    def __init__(self, model, tokenizer, metadata, batch_size=4, prefill_chunk=512):
+    def __init__(
+        self,
+        model,
+        tokenizer: Tokenizer,
+        metadata: MlxMetadata,
+        batch_size: int = 4,
+        prefill_chunk: int = 512,
+    ) -> None:
         if not 1 <= batch_size <= 16 or not 1 <= prefill_chunk <= 2048:
             raise ValueError("batch_size must be 1–16 and prefill_chunk 1–2048")
         self.model = model
@@ -117,24 +127,20 @@ class SparkBackend:
         model.eval()
         mx.eval(model.parameters())
         mx.synchronize()
-        identity = {
-            "source": spec.repo,
-            "requested_revision": spec.revision,
-            "runtime_revision": RUNTIME_REVISION,
-            "source_files": hashes,
-            "precision": f"q{bits}" if bits else "bf16",
-            "quantization_group_size": 64 if bits else None,
-            "device": "cpu" if backend == "cpu" else "gpu",
-            "backend": backend,
-            "mlx": mx.__version__,
-            "mlx_lm": importlib.metadata.version("mlx-lm"),
-            "prompt_version": PROMPT_VERSION,
-        }
-        metadata = {
-            **identity,
-            "fingerprint": hashlib.sha256(canonical(identity).encode()).hexdigest(),
-            "load_seconds": time.perf_counter() - started,
-        }
+        metadata = MlxMetadata(
+            source=spec.repo,
+            requested_revision=spec.revision,
+            runtime_revision=RUNTIME_REVISION,
+            source_files=hashes,
+            precision=f"q{bits}" if bits else "bf16",
+            quantization_group_size=64 if bits else None,
+            device="cpu" if backend == "cpu" else "gpu",
+            backend=backend,
+            mlx=mx.__version__,
+            mlx_lm=importlib.metadata.version("mlx-lm"),
+            prompt_version=PROMPT_VERSION,
+            load_seconds=time.perf_counter() - started,
+        )
         return cls(model, tokenizer, metadata, batch_size, prefill_chunk)
 
     def _prefill(self, tokens):
@@ -146,7 +152,9 @@ class SparkBackend:
             mx.eval([c.state for c in cache])
         return cache
 
-    def score(self, prefix: list[int], jobs: list[Compiled], mode="shared"):
+    def score(
+        self, prefix: list[int], jobs: list[Compiled], mode: str = "shared"
+    ) -> tuple[dict[str, list[float]], Timing]:
         import mlx.core as mx
 
         if mode not in ("shared", "direct"):
@@ -204,13 +212,13 @@ class SparkBackend:
                 batches += 1
                 del branch, hidden, final, logits
         mx.synchronize()
-        return result, {
-            "inference_seconds": time.perf_counter() - started,
-            "prefill_seconds": prefix_seconds,
-            "shared_prefix_tokens": len(prefix) if mode == "shared" else 0,
-            "evaluated_tokens_including_padding": evaluated_tokens,
-            "logical_input_tokens": sum(len(j.tokens) for j in jobs),
-            "batches": batches,
-            "generated_tokens": 0,
-            "peak_mlx_bytes": mx.get_peak_memory(),
-        }
+        return result, Timing(
+            inference_seconds=time.perf_counter() - started,
+            prefill_seconds=prefix_seconds,
+            shared_prefix_tokens=len(prefix) if mode == "shared" else 0,
+            evaluated_tokens_including_padding=evaluated_tokens,
+            logical_input_tokens=sum(len(j.tokens) for j in jobs),
+            batches=batches,
+            generated_tokens=0,
+            peak_mlx_bytes=mx.get_peak_memory(),
+        )

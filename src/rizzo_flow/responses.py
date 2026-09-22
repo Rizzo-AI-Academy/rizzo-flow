@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_serializer, model_validator
 
 from .schema import Strict
 
@@ -91,9 +91,36 @@ TypedAnswer = Annotated[
 ]
 
 
+class Timing(Strict):
+    """Seconds and token counts of one request. The two backends count different
+    peak-memory figures and the engine's own timings only exist once a request has run,
+    so serialization drops whatever is absent instead of emitting nulls."""
+
+    inference_seconds: Finite
+    prefill_seconds: Finite
+    shared_prefix_tokens: int
+    evaluated_tokens_including_padding: int
+    logical_input_tokens: int
+    batches: int
+    generated_tokens: int
+    peak_mlx_bytes: int | None = None
+    peak_device_bytes: int | None = None
+    queue_seconds: Finite | None = None
+    compile_seconds: Finite | None = None
+    total_seconds: Finite | None = None
+
+    @model_serializer
+    def without_absent_counters(self) -> dict:
+        return {
+            name: getattr(self, name)
+            for name in type(self).model_fields
+            if getattr(self, name) is not None
+        }
+
+
 class Response(Strict):
     model: dict
     mode: Literal["shared", "direct"]
     answers: dict[str, TypedAnswer]
     calibration: dict | None
-    timing: dict[str, Finite | int]
+    timing: Timing

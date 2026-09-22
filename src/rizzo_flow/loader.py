@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from .config import DEFAULT_QUANT, DEFAULT_SIZE, GGUF, MODELS
+from .protocols import ScoringBackend
 
 BACKENDS = ("llama", "mlx")
 # `auto`, `gpu` and `cpu` work everywhere. The other names ask for one GPU family: `mlx` and
@@ -21,8 +22,8 @@ def load_backend(
     device="auto",
     ctx=8192,
     batch_size=4,
-    threads=None,
-):
+    threads: int | None = None,
+) -> ScoringBackend:
     if backend not in BACKENDS:
         raise ValueError(f"Backend must be one of: {', '.join(BACKENDS)}")
     if backend == "mlx":

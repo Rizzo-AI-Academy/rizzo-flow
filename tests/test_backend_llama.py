@@ -90,10 +90,11 @@ def test_shared_prefills_once_and_packs_suffixes_without_padding():
     # Each answer is read at the last position of its own question.
     assert logits == {"short": [11.065, 11.066], "mid": [12.065, 12.066], "long": [13.065, 13.066]}
     assert engine.session.cells == {0: list(range(10))}  # the prefix survives every microbatch
-    assert timing["batches"] == 2 and timing["shared_prefix_tokens"] == 10
-    assert timing["evaluated_tokens_including_padding"] == 10 + 5 + 4
-    assert timing["logical_input_tokens"] == 14 + 12 + 13
-    assert timing["generated_tokens"] == 0 and "peak_device_bytes" not in timing
+    assert timing.batches == 2 and timing.shared_prefix_tokens == 10
+    assert timing.evaluated_tokens_including_padding == 10 + 5 + 4
+    assert timing.logical_input_tokens == 14 + 12 + 13
+    assert timing.generated_tokens == 0 and timing.peak_device_bytes is None
+    assert "peak_device_bytes" not in timing.model_dump()
 
 
 def test_direct_recomputes_every_question_from_an_empty_cache():
@@ -104,7 +105,7 @@ def test_direct_recomputes_every_question_from_an_empty_cache():
     assert [c[0] for c in engine.session.calls] == ["clear", "decode", "clear", "decode"]
     assert engine.session.calls[3] == ("decode", [100, 101, 2, 3], [0, 1, 2, 3], [0] * 4, [3])
     assert logits["a"][0] == pytest.approx(2.065) and logits["b"][0] == pytest.approx(3.065)
-    assert timing["shared_prefix_tokens"] == 0 and timing["prefill_seconds"] == 0.0
+    assert timing.shared_prefix_tokens == 0 and timing.prefill_seconds == 0.0
 
 
 def test_a_single_question_takes_one_pass_even_in_shared_mode():
@@ -115,7 +116,7 @@ def test_a_single_question_takes_one_pass_even_in_shared_mode():
         ("decode", [100, 101, 1, 2], [0, 1, 2, 3], [0] * 4, [3]),
     ]
     assert logits["only"][0] == pytest.approx(3.065)
-    assert timing["shared_prefix_tokens"] == 0 and timing["batches"] == 1
+    assert timing.shared_prefix_tokens == 0 and timing.batches == 1
 
 
 def test_inputs_longer_than_one_call_are_fed_in_slices(monkeypatch):

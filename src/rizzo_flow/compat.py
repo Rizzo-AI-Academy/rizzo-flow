@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
-from .config import MODEL_ID
+from .metadata import Metadata
 from .prompts import canonical
 from .schema import MAX_SLOTS, Request
 
@@ -66,12 +66,12 @@ class SystemOneRequest(Wire):
         return self
 
 
-def model_name(metadata: dict) -> str:
-    checkpoint = metadata.get("source", MODEL_ID).split("/")[-1].lower()  # spark-x2.5-4b
-    return f"rizzo-{checkpoint}-{metadata.get('precision', 'unknown')}"
+def model_name(metadata: Metadata) -> str:
+    checkpoint = metadata.source.split("/")[-1].lower()  # spark-x2.5-4b
+    return f"rizzo-{checkpoint}-{metadata.precision}"
 
 
-def resolve_model(requested: str, metadata: dict) -> str:
+def resolve_model(requested: str, metadata: Metadata) -> str:
     served = model_name(metadata)
     if requested in (LOCAL_ALIAS, served) or requested.startswith(FOREIGN_PREFIX):
         return served
@@ -81,9 +81,9 @@ def resolve_model(requested: str, metadata: dict) -> str:
     )
 
 
-def list_models(metadata: dict) -> dict:
+def list_models(metadata: Metadata) -> dict:
     served = model_name(metadata)
-    local = f"Local {metadata.get('source', 'Spark')} scored with typed option logits."
+    local = f"Local {metadata.source} scored with typed option logits."
     return {
         "models": [
             {"name": LOCAL_ALIAS, "description": local, "release_date": "2026-09-21"},

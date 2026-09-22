@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from .compat import SystemOneRequest, from_native, list_models, resolve_model, to_native
+from .engine import Engine
 from .responses import Response
 from .schema import Request
 
@@ -17,7 +18,7 @@ SNAKE = Path(__file__).with_name("snake.html")
 LOGO = Path(__file__).with_name("logo.png")
 
 
-def create_app(engine, api_key=None):
+def create_app(engine: Engine, api_key: str | None = None) -> FastAPI:
     app = FastAPI(
         title="Rizzo Flow",
         version="0.2.0",
@@ -34,7 +35,7 @@ def create_app(engine, api_key=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ready", "model": engine.backend.metadata}
+        return {"status": "ready", "model": engine.backend.metadata.as_dict()}
 
     @app.post("/v1/decisions", response_model=Response)
     def decisions(request: Request):

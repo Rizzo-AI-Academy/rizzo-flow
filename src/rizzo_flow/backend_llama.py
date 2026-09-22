@@ -12,7 +12,10 @@ from pathlib import Path
 from . import llama_release
 from .config import GGUF, identify
 from .llama_cpp import Session
-from .prompts import PROMPT_VERSION, Compiled, canonical
+from .metadata import LlamaMetadata
+from .prompts import PROMPT_VERSION, Compiled
+from .protocols import LlamaSession, Tokenizer
+from .responses import Timing
 
 N_BATCH = 2048  # most tokens handed to one llama_decode call
 # general.file_type of the quantizations pinned in config.GGUF (enum llama_ftype)
@@ -24,7 +27,7 @@ class LlamaTokenizer:
     """The two tokenizer calls `prompts.compile_request` makes, served by the GGUF itself:
     its chat template rendered the way transformers renders it, its vocabulary for encoding."""
 
-    def __init__(self, session, template: str):
+    def __init__(self, session: LlamaSession, template: str) -> None:
         from jinja2.sandbox import ImmutableSandboxedEnvironment
 
         def raise_exception(message):
@@ -47,7 +50,14 @@ class LlamaTokenizer:
 
 
 class LlamaBackend:
-    def __init__(self, session, tokenizer, metadata, batch_size=4, prefill_chunk=512):
+    def __init__(
+        self,
+        session: LlamaSession,
+        tokenizer: Tokenizer,
+        metadata: LlamaMetadata,
+        batch_size: int = 4,
+        prefill_chunk: int = 512,
+    ) -> None:
         if not 1 <= batch_size <= 16 or not 1 <= prefill_chunk <= 2048:
             raise ValueError("batch_size must be 1–16 and prefill_chunk 1–2048")
         self.session = session
@@ -104,27 +114,23 @@ class LlamaBackend:
             raise
         file_type = session.meta("general.file_type")
         chosen = session.device
-        identity = {
-            "source": spec.repo,
-            "requested_revision": spec.revision,
-            "gguf_source": pin.repo if pin else None,  # None: not one of the pinned files
-            "gguf_revision": pin.revision if pin else None,
-            "source_files": {path.name: sha256},
-            "precision": pin.quant if pin else FILE_TYPES.get(file_type, f"ftype{file_type}"),
-            "device": "gpu" if chosen else "cpu",
-            "backend": chosen.backend.lower() if chosen else "cpu",
-            "runtime": "llama.cpp",
-            "llama_cpp_release": llama_release.RELEASE,
-            "llama_cpp_commit": llama_release.COMMIT,
-            "prompt_version": PROMPT_VERSION,
-        }
-        metadata = {
-            **identity,
-            "fingerprint": hashlib.sha256(canonical(identity).encode()).hexdigest(),
-            "device_name": chosen.description if chosen else None,
-            "context_cells": session.n_ctx,
-            "load_seconds": time.perf_counter() - started,
-        }
+        metadata = LlamaMetadata(
+            source=spec.repo,
+            requested_revision=spec.revision,
+            gguf_source=pin.repo if pin else None,  # None: not one of the pinned files
+            gguf_revision=pin.revision if pin else None,
+            source_files={path.name: sha256},
+            precision=pin.quant if pin else FILE_TYPES.get(file_type, f"ftype{file_type}"),
+            device="gpu" if chosen else "cpu",
+            backend=chosen.backend.lower() if chosen else "cpu",
+            runtime="llama.cpp",
+            llama_cpp_release=llama_release.RELEASE,
+            llama_cpp_commit=llama_release.COMMIT,
+            prompt_version=PROMPT_VERSION,
+            device_name=chosen.description if chosen else None,
+            context_cells=session.n_ctx,
+            load_seconds=time.perf_counter() - started,
+        )
         return cls(session, tokenizer, metadata, batch_size, prefill_chunk)
 
     def _feed(self, tokens, start, sequence, want_logits) -> int | None:
@@ -168,7 +174,9 @@ class LlamaBackend:
             return None
         return max(self.session.idle_free - self._lowest_free, 0)
 
-    def score(self, prefix: list[int], jobs: list[Compiled], mode="shared"):
+    def score(
+        self, prefix: list[int], jobs: list[Compiled], mode: str = "shared"
+    ) -> tuple[dict[str, list[float]], Timing]:
         if mode not in ("shared", "direct"):
             raise ValueError("Unknown execution mode")
         if not jobs:
@@ -226,15 +234,14 @@ class LlamaBackend:
                 batches += 1
         session.synchronize()
         self._track_memory()
-        timing = {
-            "inference_seconds": time.perf_counter() - started,
-            "prefill_seconds": prefix_seconds,
-            "shared_prefix_tokens": len(prefix) if reuse else 0,
-            "evaluated_tokens_including_padding": evaluated_tokens,  # llama.cpp never pads
-            "logical_input_tokens": sum(len(j.tokens) for j in jobs),
-            "batches": batches,
-            "generated_tokens": 0,
-        }
-        if self._lowest_free is not None:
-            timing["peak_device_bytes"] = self.peak_device_bytes()
+        timing = Timing(
+            inference_seconds=time.perf_counter() - started,
+            prefill_seconds=prefix_seconds,
+            shared_prefix_tokens=len(prefix) if reuse else 0,
+            evaluated_tokens_including_padding=evaluated_tokens,  # llama.cpp never pads
+            logical_input_tokens=sum(len(j.tokens) for j in jobs),
+            batches=batches,
+            generated_tokens=0,
+            peak_device_bytes=self.peak_device_bytes(),
+        )
         return result, timing
