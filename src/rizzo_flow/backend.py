@@ -104,7 +104,7 @@ class SparkBackend:
         config = json.loads((path / "config.json").read_text(encoding="utf-8"))
         if config.get("model_type") != "spark2_5":
             raise ValueError("Only the Spark2.5 architecture is supported")
-        spec = identify(config)
+        spec = identify(config.get("hidden_size"))
         model, tokenizer = load(
             path,
             lazy=True,

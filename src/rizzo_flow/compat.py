@@ -76,7 +76,8 @@ def resolve_model(requested: str, metadata: dict) -> str:
     if requested in (LOCAL_ALIAS, served) or requested.startswith(FOREIGN_PREFIX):
         return served
     raise ValueError(
-        f"Unknown model {requested!r}. Use {LOCAL_ALIAS!r}, {served!r} or a {FOREIGN_PREFIX}* alias."
+        f"Unknown model {requested!r}. Use {LOCAL_ALIAS!r}, {served!r} "
+        f"or a {FOREIGN_PREFIX}* alias."
     )
 
 

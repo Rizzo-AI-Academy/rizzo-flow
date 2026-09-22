@@ -104,13 +104,13 @@ DEFAULT_QUANT = "q8_0"
 DEFAULT_MODEL_PATH = MODELS[DEFAULT_SIZE].path
 
 
-def identify(config: dict) -> ModelSpec:
-    """Match a checkpoint's config.json to a supported, pinned model."""
+def identify(hidden_size: int | None) -> ModelSpec:
+    """Match a checkpoint's hidden size to a supported, pinned model."""
     for spec in MODELS.values():
-        if config.get("hidden_size") == spec.hidden_size:
+        if hidden_size == spec.hidden_size:
             return spec
     raise ValueError(
-        f"Unrecognized Spark2.5 checkpoint (hidden_size={config.get('hidden_size')}); "
+        f"Unrecognized Spark2.5 checkpoint (hidden_size={hidden_size}); "
         f"supported sizes: {', '.join(MODELS)}"
     )
 

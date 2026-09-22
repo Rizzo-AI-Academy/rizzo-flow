@@ -85,7 +85,8 @@ def main():
             dest="ctx",
             type=int,
             default=8192,
-            help="Context limit in tokens per question (state + question); longer inputs are rejected",
+            help="Context limit in tokens per question (state + question); longer inputs "
+            "are rejected",
         )
         p.add_argument("--calibration", type=Path)
         if name == "serve":

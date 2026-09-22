@@ -94,9 +94,7 @@ class LlamaBackend:
             architecture = session.meta("general.architecture")
             if architecture != ARCHITECTURE:
                 raise ValueError(f"Only the Spark2.5 architecture is supported, not {architecture}")
-            spec = identify(
-                {"hidden_size": int(session.meta(f"{ARCHITECTURE}.embedding_length") or 0)}
-            )
+            spec = identify(int(session.meta(f"{ARCHITECTURE}.embedding_length") or 0))
             template = session.chat_template()
             if not template:
                 raise ValueError("The GGUF file carries no chat template")

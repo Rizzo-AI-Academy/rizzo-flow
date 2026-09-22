@@ -154,7 +154,8 @@ def test_tokenizer_renders_like_transformers_and_encodes_with_the_gguf():
         "{%- for m in messages %}\n"
         "    {{- '<' + m.role + '>' + m.content }}\n"
         "{%- endfor %}\n"
-        "{%- if add_generation_prompt %}{{ '<bot>' }}{%- if not enable_thinking %}{{ '</think>' }}{%- endif %}{%- endif %}"
+        "{%- if add_generation_prompt %}{{ '<bot>' }}"
+        "{%- if not enable_thinking %}{{ '</think>' }}{%- endif %}{%- endif %}"
     )
     tokenizer = LlamaTokenizer(FakeSession(), template)
     text = tokenizer.apply_chat_template(

@@ -88,7 +88,8 @@ def compile_request(tokenizer, request: Request, ctx: int) -> tuple[list[int], l
         tokens = tokenizer.encode(prompt, add_special_tokens=False)
         if not tokens or len(tokens) > ctx:
             raise ValueError(
-                f"Question {key}: {len(tokens)} tokens exceeds the context limit {ctx} (--ctx); no truncation"
+                f"Question {key}: {len(tokens)} tokens exceeds the context limit "
+                f"{ctx} (--ctx); no truncation"
             )
         slots = []
         for letter in string.ascii_uppercase[: len(cs)]:

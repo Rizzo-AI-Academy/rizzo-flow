@@ -62,7 +62,7 @@ def V2_QUESTION(instruction, descriptions):
         "question": instruction,
         "options": [
             {"letter": letter, "description": description}
-            for letter, description in zip(string.ascii_uppercase, descriptions)
+            for letter, description in zip(string.ascii_uppercase, descriptions, strict=False)
         ],
     }
     return "\n" + json.dumps(payload, ensure_ascii=False)
@@ -88,7 +88,9 @@ def text_state(state):
 
 
 def mcq(instruction, descriptions, closing="Answer with the letter of the best option."):
-    lines = [f"{letter}. {d}" for letter, d in zip(string.ascii_uppercase, descriptions)]
+    lines = [
+        f"{letter}. {d}" for letter, d in zip(string.ascii_uppercase, descriptions, strict=False)
+    ]
     tail = f"\n\nQuestion: {instruction}\n\nOptions:\n" + "\n".join(lines)
     return tail + (f"\n\n{closing}" if closing else "")
 
@@ -173,7 +175,7 @@ def score(engine, base, perturbed, smoke):
     # Stability: does the semantic choice survive each meaning-preserving perturbation?
     by_id = {p["id"]: p for p in predictions["base"]}
     flips = defaultdict(int)
-    for row, p in zip(perturbed, predictions["perturbed"]):
+    for row, p in zip(perturbed, predictions["perturbed"], strict=True):
         ref = by_id.get(row["provenance"]["base_id"])
         if ref:
             pick = lambda x: x["option_ids"][x["probabilities"].index(max(x["probabilities"]))]

@@ -55,11 +55,11 @@ def test_unknown_machine_is_told_how_to_bring_a_build(monkeypatch):
 def test_every_package_is_pinned_by_a_sha256():
     for (system, machine, family), archives in release.PACKAGES.items():
         assert family in release.PREFERENCE, (system, machine, family)
-        for name, sha256 in archives:
-            assert re.fullmatch(r"[0-9a-f]{64}", sha256), name
-            assert name.endswith((".zip", ".tar.gz"))
+        for asset in archives:
+            assert re.fullmatch(r"[0-9a-f]{64}", asset.sha256), asset.name
+            assert asset.name.endswith((".zip", ".tar.gz"))
             # Only the Windows CUDA runtime archive is shared between releases.
-            assert release.RELEASE in name or name.startswith("cudart-llama-bin-win")
+            assert release.RELEASE in asset.name or asset.name.startswith("cudart-llama-bin-win")
 
 
 def archive_zip(path, members):
@@ -158,7 +158,9 @@ def test_install_and_locate(tmp_path, monkeypatch):
     for family in ("vulkan", "cpu"):
         name = f"llama-{family}.zip"
         archive_zip(served / name, {"llama.dll": family.encode(), "ggml.dll": b"g"})
-        packages[("win32", "x64", family)] = [(name, release.sha256_file(served / name))]
+        packages[("win32", "x64", family)] = [
+            release.Archive(name, release.sha256_file(served / name))
+        ]
     monkeypatch.setattr(release, "PACKAGES", packages)
     monkeypatch.setattr(release, "BASE_URL", served.as_uri())
     directory = release.install("auto")

@@ -55,3 +55,10 @@ markers = ["mlx: small real Spark architecture tests; requires MLX", "integratio
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# prepare() must patch sys.modules and PATH before anything imports the MLX stack.
+"src/rizzo_flow/__init__.py" = ["E402"]
