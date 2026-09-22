@@ -30,7 +30,7 @@ uv sync --extra test --locked                     # llama.cpp non richiede extra
 .venv/bin/rizzo download                          # runtime llama.cpp per questa macchina (runtimes/) + GGUF Q8_0 (~4.4 GB, models/)
 .venv/bin/rizzo download --only runtime --runtime vulkan   # un'altra build; --backend mlx scarica i pesi originali (~8 GB)
 .venv/bin/rizzo devices                           # device visti da llama.cpp e scelta di auto; su Windows gli eseguibili sono in .venv/Scripts/
-.venv/bin/pytest -q                               # 65 test (+4 saltati), ~3 s, nessun peso richiesto
+.venv/bin/pytest -q                               # 76 test (+4 saltati), ~3 s, nessun peso richiesto
 RIZZO_REAL=1 .venv/bin/pytest -q -m integration   # 4 test con runtime e GGUF reali (il più piccolo Q8_0 presente)
 .venv/bin/pytest tests/test_compat.py::test_systemone_wire_shape   # test singolo
 .venv/bin/ruff check src tests scripts && .venv/bin/ruff format --check src tests scripts
@@ -51,7 +51,9 @@ misurare tempi. Tutti gli script (`semif_compare`, `validate_checkpoint`, `recor
 `--backend llama|mlx`. SemIf è clonato in `.research/SemIf` (ignorato da git) al commit `ca3ba65`.
 
 I test non caricano mai il checkpoint 4B: `test_service.py`/`test_compat.py` usano `FakeBackend`
-+ `CharacterTokenizer` (il fake favorisce sempre il secondo candidato); `test_backend_llama.py` usa
++ `CharacterTokenizer` di `tests/fakes.py` (il fake favorisce sempre il secondo candidato);
+`test_formats.py` ricostruisce i record dai report in `results/` e pretende lo stesso
+fingerprint, lo stesso JSON e lo stesso ordine delle chiavi; `test_backend_llama.py` usa
 una `FakeSession` che registra ogni chiamata (token, posizioni, sequenze, righe di logit lette);
 `test_llama_release.py` copre scelta del pacchetto, download ripreso (server HTTP locale che cade a
 metà), sha256 ed estrazione sicura, senza rete; `test_mlx.py` usa la vera architettura Spark ridotta
