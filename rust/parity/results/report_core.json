@@ -1,0 +1,14 @@
+{
+  "mode": "exact",
+  "numeric_tolerance": 1e-09,
+  "cases": 20,
+  "cases_matched": 20,
+  "cases_with_differences": [],
+  "numeric_fields_compared": 350,
+  "scalar_fields_compared": 165,
+  "max_numeric_delta": 4.440892098500626e-16,
+  "blocking_differences": 0,
+  "documented_differences": 0,
+  "informational_differences": 0,
+  "differences": []
+}

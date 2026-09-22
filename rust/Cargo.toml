@@ -1,0 +1,28 @@
+[package]
+name = "rizzo-flow-rs"
+version = "0.1.0"
+edition = "2021"
+description = "Rizzo Flow in Rust — typed decisions with zero generated tokens (port of Rizzo Flow with a llama.cpp/GGUF backend)"
+license = "Apache-2.0"
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# preserve_order: option/level order defines the answer slots (Python dicts keep
+# insertion order); without it serde_json::Map sorts keys alphabetically.
+serde_json = { version = "1", features = ["preserve_order"] }
+llama-cpp-2 = { version = "0.1.156", optional = true }
+encoding_rs = { version = "0.8.35", optional = true }
+tiny_http = { version = "0.12", optional = true }
+sha2 = "0.10"
+
+[profile.release]
+lto = "thin"
+
+[dev-dependencies]
+serde_json = "1"
+
+[features]
+default = []
+llama = ["dep:llama-cpp-2", "dep:encoding_rs", "dep:tiny_http"]
+cuda = ["llama", "llama-cpp-2/cuda"]
