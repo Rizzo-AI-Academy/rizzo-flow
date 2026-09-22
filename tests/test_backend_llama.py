@@ -1,5 +1,8 @@
 """llama.cpp backend logic against a recording fake session: no library, no weights."""
 
+from collections.abc import Sequence
+from pathlib import Path
+
 import pytest
 
 from rizzo_flow import backend_llama, loader
@@ -16,24 +19,30 @@ class FakeSession:
     pad_token = None
     eos_token = 2
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.calls = []
         self.cells = {}  # sequence -> positions held
         self.last = None
 
-    def clear(self):
+    def clear(self) -> None:
         self.calls.append(("clear",))
         self.cells = {}
 
-    def branch(self, source, target):
+    def branch(self, source: int, target: int) -> None:
         self.calls.append(("branch", source, target))
         self.cells[target] = list(self.cells[source])
 
-    def drop(self, sequence):
+    def drop(self, sequence: int) -> None:
         self.calls.append(("drop", sequence))
         del self.cells[sequence]
 
-    def decode(self, tokens, positions, sequences, outputs=()):
+    def decode(
+        self,
+        tokens: list[int],
+        positions: Sequence[int],
+        sequences: Sequence[int],
+        outputs: Sequence[int] = (),
+    ) -> None:
         tokens, positions, sequences = list(tokens), list(positions), list(sequences)
         assert len(tokens) == len(positions) == len(sequences) <= backend_llama.N_BATCH
         for position, sequence in zip(positions, sequences, strict=True):
@@ -43,30 +52,32 @@ class FakeSession:
         self.calls.append(("decode", tokens, positions, sequences, list(outputs)))
         self.last = (positions, list(outputs))
 
-    def logits(self, index, slots):
+    def logits(self, index: int, slots: list[int]) -> list[float]:
         positions, outputs = self.last
         assert index in outputs, "logits were not requested at this row"
         return [positions[index] + slot / 1000 for slot in slots]
 
-    def synchronize(self):
+    def synchronize(self) -> None:
         pass
 
-    def free_bytes(self):
+    def free_bytes(self) -> int | None:
         return None
 
-    def tokenize(self, text, add_special=False):
+    def tokenize(self, text: str, add_special: bool = False) -> list[int]:
         return [ord(c) for c in text]
 
 
-def backend(batch_size=4):
+def backend(batch_size: int = 4) -> LlamaBackend:
     return LlamaBackend(FakeSession(), None, {"fingerprint": "test"}, batch_size=batch_size)
 
 
-def job(name, prefix, suffix, slots=(65, 66)):
+def job(
+    name: str, prefix: list[int], suffix: list[int], slots: Sequence[int] = (65, 66)
+) -> Compiled:
     return Compiled(name, prefix + suffix, list(slots), "hash")
 
 
-def test_shared_prefills_once_and_packs_suffixes_without_padding():
+def test_shared_prefills_once_and_packs_suffixes_without_padding() -> None:
     prefix = list(range(100, 110))
     jobs = [
         job("long", prefix, [1, 2, 3, 4]),
@@ -97,7 +108,7 @@ def test_shared_prefills_once_and_packs_suffixes_without_padding():
     assert "peak_device_bytes" not in timing.model_dump()
 
 
-def test_direct_recomputes_every_question_from_an_empty_cache():
+def test_direct_recomputes_every_question_from_an_empty_cache() -> None:
     prefix = [100, 101]
     jobs = [job("a", prefix, [1]), job("b", prefix, [2, 3])]
     engine = backend()
@@ -108,7 +119,7 @@ def test_direct_recomputes_every_question_from_an_empty_cache():
     assert timing.shared_prefix_tokens == 0 and timing.prefill_seconds == 0.0
 
 
-def test_a_single_question_takes_one_pass_even_in_shared_mode():
+def test_a_single_question_takes_one_pass_even_in_shared_mode() -> None:
     engine = backend()
     logits, timing = engine.score([100, 101], [job("only", [100, 101], [1, 2])], "shared")
     assert engine.session.calls == [
@@ -119,7 +130,9 @@ def test_a_single_question_takes_one_pass_even_in_shared_mode():
     assert timing.shared_prefix_tokens == 0 and timing.batches == 1
 
 
-def test_inputs_longer_than_one_call_are_fed_in_slices(monkeypatch):
+def test_inputs_longer_than_one_call_are_fed_in_slices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(backend_llama, "N_BATCH", 4)
     prefix = list(range(10))
     jobs = [job("huge", prefix, list(range(50, 59))), job("tiny", prefix, [1])]
@@ -135,7 +148,7 @@ def test_inputs_longer_than_one_call_are_fed_in_slices(monkeypatch):
     assert [len(c[1]) for c in engine.session.calls if c[0] == "decode"] == [4, 4, 2, 3, 3]
 
 
-def test_score_rejects_bad_input():
+def test_score_rejects_bad_input() -> None:
     engine = backend()
     with pytest.raises(ValueError, match="mode"):
         engine.score([1], [job("a", [1], [2])], "batched")
@@ -149,7 +162,7 @@ def test_score_rejects_bad_input():
         backend(batch_size=17)
 
 
-def test_tokenizer_renders_like_transformers_and_encodes_with_the_gguf():
+def test_tokenizer_renders_like_transformers_and_encodes_with_the_gguf() -> None:
     template = (
         "{%- if not messages %}{{ raise_exception('No messages provided.') }}{%- endif %}\n"
         "{%- for m in messages %}\n"
@@ -181,7 +194,7 @@ SMALL = Device(4, "Vulkan2", "AMD Radeon RX 6600", "gpu", "Vulkan", 8 << 30)
 GEFORCE = Device(5, "CUDA0", "NVIDIA GeForce RTX 5060 Ti", "gpu", "CUDA", 16 << 30)
 
 
-def test_device_choice():
+def test_device_choice() -> None:
     machine = [CPU, IGPU, SMALL, RADEON]
     assert choose_device(machine, "auto") is RADEON  # discrete before integrated, then memory
     assert choose_device(machine, "gpu") is RADEON
@@ -196,7 +209,7 @@ def test_device_choice():
         choose_device(machine, "cuda")
 
 
-def test_loader_rejects_options_of_the_other_backend(tmp_path):
+def test_loader_rejects_options_of_the_other_backend(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="--quant"):
         loader.load_backend("llama", bits=8)
     with pytest.raises(ValueError, match="--bits"):

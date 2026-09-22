@@ -3,21 +3,29 @@
 Needs `rizzo download` (any size). Never part of the default suite, which loads no weights.
 """
 
+# Postponed annotations: importing LlamaBackend eagerly would load the ctypes layer.
+from __future__ import annotations
+
 import json
 import os
 import string
+from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from rizzo_flow import llama_release
 from rizzo_flow.config import GGUF, MODELS
 
+if TYPE_CHECKING:  # importing it eagerly would load the ctypes layer
+    from rizzo_flow.backend_llama import LlamaBackend
+
 pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="module")
-def backend():
+def backend() -> Iterator[LlamaBackend]:
     if os.environ.get("RIZZO_REAL") != "1":
         pytest.skip("set RIZZO_REAL=1 to load real weights")
     files = [spec for spec in GGUF.values() if spec.quant == "q8_0" and spec.path.is_file()]
@@ -31,7 +39,7 @@ def backend():
     loaded.session.close()
 
 
-def test_identity_is_pinned(backend):
+def test_identity_is_pinned(backend: LlamaBackend) -> None:
     meta = backend.metadata
     assert meta.runtime == "llama.cpp" and meta.llama_cpp_release == llama_release.RELEASE
     assert meta.gguf_source and meta.precision == "q8_0"
@@ -40,7 +48,7 @@ def test_identity_is_pinned(backend):
     assert meta.as_dict()["fingerprint"] == meta.fingerprint
 
 
-def test_prompt_matches_the_original_checkpoint(backend):
+def test_prompt_matches_the_original_checkpoint(backend: LlamaBackend) -> None:
     """Same template text and same token ids as the Hugging Face files, when they are here."""
     size = next(s for s, spec in MODELS.items() if spec.repo == backend.metadata.source)
     original = Path(MODELS[size].path)
@@ -71,12 +79,12 @@ def test_prompt_matches_the_original_checkpoint(backend):
     assert backend.tokenizer.encode(text) == reference.encode(text, add_special_tokens=False).ids
 
 
-def test_answer_letters_are_single_tokens(backend):
+def test_answer_letters_are_single_tokens(backend: LlamaBackend) -> None:
     ids = [backend.tokenizer.encode(letter) for letter in string.ascii_uppercase]
     assert all(len(found) == 1 for found in ids) and len({found[0] for found in ids}) == 26
 
 
-def test_shared_prefix_agrees_with_direct(backend):
+def test_shared_prefix_agrees_with_direct(backend: LlamaBackend) -> None:
     from rizzo_flow.engine import Engine
 
     engine = Engine(backend, ctx=4096)

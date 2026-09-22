@@ -7,7 +7,9 @@ CUDA, Vulkan (AMD, Intel, NVIDIA), ROCm, SYCL and plain CPUs from the same GGUF 
 
 import hashlib
 import time
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any, Never, Self
 
 from . import llama_release
 from .config import GGUF, identify
@@ -30,7 +32,7 @@ class LlamaTokenizer:
     def __init__(self, session: LlamaSession, template: str) -> None:
         from jinja2.sandbox import ImmutableSandboxedEnvironment
 
-        def raise_exception(message):
+        def raise_exception(message: str) -> Never:
             raise ValueError(message)
 
         environment = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True)
@@ -40,7 +42,9 @@ class LlamaTokenizer:
         self.pad_token_id = session.pad_token
         self.eos_token_id = session.eos_token
 
-    def apply_chat_template(self, messages, tokenize=False, **variables) -> str:
+    def apply_chat_template(
+        self, messages: list[dict[str, str]], tokenize: bool = False, **variables: Any
+    ) -> str:
         if tokenize:
             raise ValueError("Render the text, then call encode()")
         return self.template.render(messages=messages, **variables)
@@ -70,14 +74,14 @@ class LlamaBackend:
     @classmethod
     def load(
         cls,
-        path,
-        device="auto",
-        ctx=8192,
-        batch_size=4,
-        prefill_chunk=512,
-        threads=None,
-        runtime_dir=None,
-    ):
+        path: Path | str,
+        device: str = "auto",
+        ctx: int = 8192,
+        batch_size: int = 4,
+        prefill_chunk: int = 512,
+        threads: int | None = None,
+        runtime_dir: Path | None = None,
+    ) -> Self:
         path = Path(path).resolve()
         if not path.is_file():
             raise ValueError(f"GGUF file not found at {path}. Run `rizzo download` first.")
@@ -133,7 +137,7 @@ class LlamaBackend:
         )
         return cls(session, tokenizer, metadata, batch_size, prefill_chunk)
 
-    def _feed(self, tokens, start, sequence, want_logits) -> int | None:
+    def _feed(self, tokens: list[int], start: int, sequence: int, want_logits: bool) -> int | None:
         """Run `tokens` on one sequence, N_BATCH per call; index of the final logits row.
         llama.cpp splits each call into `prefill_chunk` micro-batches on its own."""
         last = None
@@ -149,7 +153,7 @@ class LlamaBackend:
             last = len(piece) - 1 if final else None
         return last
 
-    def _groups(self, jobs, prefix_length):
+    def _groups(self, jobs: list[Compiled], prefix_length: int) -> Iterator[list[Compiled]]:
         """Microbatches of up to `batch_size` suffixes that fit one llama_decode call."""
         group, used = [], 0
         for job in jobs:
@@ -162,7 +166,7 @@ class LlamaBackend:
         if group:
             yield group
 
-    def _track_memory(self):
+    def _track_memory(self) -> None:
         free = self.session.free_bytes()
         if free is not None:
             self._lowest_free = free if self._lowest_free is None else min(self._lowest_free, free)

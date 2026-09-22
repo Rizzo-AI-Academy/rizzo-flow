@@ -20,6 +20,7 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from types import ModuleType
 
 
 def read(path: Path) -> list[dict]:
@@ -60,13 +61,13 @@ def chosen(prediction: dict) -> str:
 class MlxMemory:
     key = "peak_mlx_bytes"
 
-    def reset(self):
+    def reset(self) -> None:
         import mlx.core as mx
 
         mx.clear_cache()
         mx.reset_peak_memory()
 
-    def peak(self):
+    def peak(self) -> int:
         import mlx.core as mx
 
         return mx.get_peak_memory()
@@ -77,18 +78,18 @@ class LlamaMemory:
 
     key = "peak_device_bytes"
 
-    def __init__(self, backend):
+    def __init__(self, backend: object) -> None:
         self.backend = backend
 
-    def reset(self):
+    def reset(self) -> None:
         pass
 
-    def peak(self):
+    def peak(self) -> int | None:
         return self.backend.peak_device_bytes()
 
 
 class Rizzo:
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace) -> None:
         from rizzo_flow.engine import Engine
         from rizzo_flow.loader import load_backend
 
@@ -138,15 +139,15 @@ class Rizzo:
             for row in rows
         ]
 
-    def direct(self, row):
+    def direct(self, row: dict) -> dict:
         return self._run([row], "direct")[0]
 
-    def shared(self, rows):
+    def shared(self, rows: list[dict]) -> list[dict]:
         return self._run(rows, "shared")
 
 
 class SemIf:
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace) -> None:
         from semif_phase1 import mlx_backend
 
         self.backend = mlx_backend
@@ -155,10 +156,10 @@ class SemIf:
             args.model or "Qwen/Qwen3.5-4B", args.revision, args.bits
         )
 
-    def direct(self, row):
+    def direct(self, row: dict) -> dict:
         return self.backend.score(self.model, self.tokenizer, row, self.metadata)
 
-    def shared(self, rows):
+    def shared(self, rows: list[dict]) -> list[dict]:
         return self.backend.score_shared(self.model, self.tokenizer, rows, self.metadata)[0]
 
 
@@ -173,10 +174,16 @@ def latency(seconds: list[float]) -> dict:
     }
 
 
-def stability(evaluate, gold: list[dict], base, perturb_gold: list[dict], perturbed) -> dict:
+def stability(
+    evaluate: ModuleType,
+    gold: list[dict],
+    base: list[dict],
+    perturb_gold: list[dict],
+    perturbed: list[dict],
+) -> dict:
     """Single-system version of SemIf's `evaluate_perturbations.py` (same definitions)."""
 
-    def headline(result):
+    def headline(result: dict) -> dict:
         return {
             "mean_family_balanced_accuracy": result["mean_family_balanced_accuracy"],
             "accuracy": 1 - len(result["errors"]) / result["evaluated"],
@@ -298,7 +305,7 @@ def main() -> None:
         if not selected:
             continue
 
-        def run(group, mode=mode):
+        def run(group: list[dict], mode: str = mode) -> list[dict]:
             if mode == "shared":
                 return system.shared(group)
             return [system.direct(row) for row in group]

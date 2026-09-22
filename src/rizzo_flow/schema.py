@@ -1,7 +1,8 @@
 """Strict public request contract. Model outputs never supply JSON or field names."""
 
 import json
-from typing import Annotated, Literal
+from collections.abc import Sequence
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, StringConstraints, model_validator
 
@@ -24,7 +25,7 @@ class BaseQuestion(Strict):
     instructions: Text
     policy: Policy = Field(default_factory=Policy)
 
-    def require_slots(self, entries, reserved=0):
+    def require_slots(self, entries: Sequence[object], reserved: int = 0) -> None:
         reserved += self.policy.allow_abstain
         if len(entries) + reserved > MAX_SLOTS:
             raise ValueError(
@@ -49,7 +50,7 @@ class ChoiceQuestion(BaseQuestion):
     options: list[Option] = Field(min_length=2, max_length=MAX_SLOTS)
 
     @model_validator(mode="after")
-    def unique_ids(self):
+    def unique_ids(self) -> Self:
         if len({o.id for o in self.options}) != len(self.options):
             raise ValueError("Option IDs must be unique")
         self.require_slots(self.options)
@@ -61,7 +62,7 @@ class ScoreQuestion(BaseQuestion):
     levels: list[Text] = Field(min_length=2, max_length=MAX_SLOTS)
 
     @model_validator(mode="after")
-    def distinct_levels(self):
+    def distinct_levels(self) -> Self:
         if len(set(self.levels)) != len(self.levels):
             raise ValueError("Levels must have distinct descriptions")
         self.require_slots(self.levels)
@@ -79,7 +80,7 @@ class NumericQuestion(BaseQuestion):
     anchors: list[Anchor] = Field(min_length=2, max_length=MAX_SLOTS)
 
     @model_validator(mode="after")
-    def increasing_anchors(self):
+    def increasing_anchors(self) -> Self:
         if any(b.value <= a.value for a, b in zip(self.anchors, self.anchors[1:], strict=False)):
             raise ValueError("Numeric anchors must be strictly increasing")
         self.require_slots(self.anchors, reserved=2)
@@ -98,7 +99,7 @@ class Request(Strict):
     mode: Literal["shared", "direct"] = "shared"
 
     @model_validator(mode="after")
-    def valid_state(self):
+    def valid_state(self) -> Self:
         if not self.state or (isinstance(self.state, str) and not self.state.strip()):
             raise ValueError("State must not be empty")
         rendered = json.dumps(self.state, ensure_ascii=False, allow_nan=False)

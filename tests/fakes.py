@@ -4,9 +4,11 @@ They live in their own module rather than inside a test file, so importing them 
 mean importing somebody else's tests.
 """
 
+from typing import Any
+
 from rizzo_flow.config import MODEL_ID
 from rizzo_flow.metadata import LlamaMetadata, MlxMetadata
-from rizzo_flow.prompts import PROMPT_VERSION
+from rizzo_flow.prompts import PROMPT_VERSION, Compiled
 from rizzo_flow.responses import Timing
 
 
@@ -16,10 +18,10 @@ class CharacterTokenizer:
     pad_token_id = 0
     eos_token_id = 1
 
-    def encode(self, text, add_special_tokens=False):
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
         return [ord(c) for c in text]
 
-    def apply_chat_template(self, messages, **kwargs):
+    def apply_chat_template(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
         assert kwargs["enable_thinking"] is False
         return "\n".join(m["content"] for m in messages) + "\nASSISTANT:"
 
@@ -27,7 +29,7 @@ class CharacterTokenizer:
 class FakeBackend:
     tokenizer = CharacterTokenizer()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metadata = LlamaMetadata(
             source=MODEL_ID,
             requested_revision="test",
@@ -43,7 +45,9 @@ class FakeBackend:
             prompt_version=PROMPT_VERSION,
         )
 
-    def score(self, prefix, jobs, mode):
+    def score(
+        self, prefix: list[int], jobs: list[Compiled], mode: str
+    ) -> tuple[dict[str, list[float]], Timing]:
         logits = {j.id: [0, 10] + [0] * (len(j.slots) - 2) for j in jobs}
         return logits, Timing(
             inference_seconds=0.0,

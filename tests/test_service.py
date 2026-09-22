@@ -14,7 +14,7 @@ from rizzo_flow.schema import Request
 
 
 @pytest.fixture
-def payload():
+def payload() -> dict:
     return {
         "state": {"ticket": "Cannot log in"},
         "questions": {
@@ -31,7 +31,7 @@ def payload():
     }
 
 
-def test_shared_prefix_and_state_mutation(payload):
+def test_shared_prefix_and_state_mutation(payload: dict) -> None:
     request = Request.model_validate(payload)
     prefix, jobs = compile_request(CharacterTokenizer(), request, 8192)
     assert all(job.tokens[: len(prefix)] == prefix for job in jobs)
@@ -40,12 +40,12 @@ def test_shared_prefix_and_state_mutation(payload):
     assert other != prefix
 
 
-def test_limits_reject_without_truncation(payload):
+def test_limits_reject_without_truncation(payload: dict) -> None:
     with pytest.raises(ValueError, match="no truncation"):
         Engine(FakeBackend(), ctx=10).decide(payload)
 
 
-def test_api_and_all_input_validation(payload):
+def test_api_and_all_input_validation(payload: dict) -> None:
     with TestClient(create_app(Engine(FakeBackend()))) as client:
         assert client.get("/health").json()["status"] == "ready"
         response = client.post("/v1/decisions", json=payload)
@@ -56,7 +56,7 @@ def test_api_and_all_input_validation(payload):
         assert client.post("/v1/decisions", json=payload).status_code == 422
 
 
-def test_temperature_fit_and_model_binding():
+def test_temperature_fit_and_model_binding() -> None:
     rows = [{"type": "choice", "logits": [0, 8], "label_index": int(i % 2 == 0)} for i in range(20)]
     calibration = fit_temperature(rows, FakeBackend().metadata.fingerprint)
     assert calibration.temperatures["choice"] > 1
@@ -68,7 +68,7 @@ def test_temperature_fit_and_model_binding():
         Engine(FakeBackend(), calibration=calibration)
 
 
-def test_evaluation_coverage_raw_evidence(payload):
+def test_evaluation_coverage_raw_evidence(payload: dict) -> None:
     # A score question as well, so the numeric side of the report is exercised: the fake
     # favours the second of three levels, so the expected value is exactly 1.
     payload["questions"]["severity"] = {

@@ -1,6 +1,7 @@
 """Real Spark computation/cache tests with small random weights, no model download."""
 
 import importlib.util
+from typing import Any
 
 import pytest
 from fakes import throwaway_mlx_metadata
@@ -13,7 +14,7 @@ pytestmark = [
 ]
 
 
-def tiny_model(bits=None):
+def tiny_model(bits: int | None = None) -> Any:
     import mlx.core as mx
     from spark_mlx_llm.model import Model, ModelArgs
 
@@ -45,7 +46,7 @@ def tiny_model(bits=None):
 
 
 @pytest.mark.parametrize("bits", [None, 4, 8])
-def test_selected_projection_equals_full_vocabulary(bits):
+def test_selected_projection_equals_full_vocabulary(bits: int | None) -> None:
     import mlx.core as mx
 
     from rizzo_flow.backend import selected_logits
@@ -59,7 +60,7 @@ def test_selected_projection_equals_full_vocabulary(bits):
 
 
 @pytest.mark.parametrize("prefix_length", [5, 16, 49])
-def test_shared_padding_rotating_cache_and_repeat_are_equivalent(prefix_length):
+def test_shared_padding_rotating_cache_and_repeat_are_equivalent(prefix_length: int) -> None:
     from rizzo_flow.backend import SparkBackend
     from rizzo_flow.prompts import Compiled
 
@@ -84,7 +85,7 @@ def test_shared_padding_rotating_cache_and_repeat_are_equivalent(prefix_length):
     assert timing.generated_tokens == 0 and timing.peak_mlx_bytes is not None
 
 
-def test_branch_does_not_mutate_retained_prefix():
+def test_branch_does_not_mutate_retained_prefix() -> None:
     import mlx.core as mx
 
     from rizzo_flow.backend import SparkBackend, branch_cache

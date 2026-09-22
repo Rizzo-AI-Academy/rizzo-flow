@@ -2,7 +2,8 @@
 
 import hashlib
 import math
-from typing import Annotated, Literal
+from pathlib import Path
+from typing import Annotated, Literal, Self
 
 from pydantic import Field
 
@@ -32,7 +33,7 @@ class Calibration(Strict):
     status: Literal["fitted_requires_held_out_validation"] = "fitted_requires_held_out_validation"
 
     @classmethod
-    def from_file(cls, path):
+    def from_file(cls, path: Path) -> Self:
         item = cls.model_validate_json(path.read_text(encoding="utf-8"))
         if any(not math.isfinite(t) or t <= 0 for t in item.temperatures.values()):
             raise ValueError("Calibration temperatures must be finite and positive")
@@ -60,7 +61,7 @@ def fit_temperature(rows: list[dict], fingerprint: str) -> Calibration:
         if len(group) < 10:
             raise ValueError(f"Provide at least 10 calibration examples for {kind}")
 
-        def loss(log_temperature, group=group):
+        def loss(log_temperature: float, group: list[LabeledLogits] = group) -> float:
             t = math.exp(log_temperature)
             total = 0.0
             for row in group:

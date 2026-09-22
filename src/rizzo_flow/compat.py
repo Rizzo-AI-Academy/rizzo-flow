@@ -4,7 +4,7 @@ Only the interface matches the public TypeSafe docs. Answers come from the local
 checkpoint: the response `model` field always reports the local model, never a Jev version.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
@@ -62,7 +62,7 @@ class SystemOneRequest(Wire):
     questions: dict[str, WireQuestion] = Field(min_length=1, max_length=64)
 
     @model_validator(mode="after")
-    def nonblank_option_keys(self):
+    def nonblank_option_keys(self) -> Self:
         for question in self.questions.values():
             if isinstance(question, ChoiceQuestion) and any(
                 not key.strip() for key in question.criteria
@@ -157,7 +157,7 @@ def list_models(metadata: Metadata) -> ModelList:
     )
 
 
-def text(value) -> str:
+def text(value: object) -> str:
     return value.strip() if isinstance(value, str) else canonical(value)
 
 
@@ -207,7 +207,7 @@ def to_native(request: SystemOneRequest) -> tuple[Request, dict[str, list[str]]]
     return Request(state=request.state, questions=questions), options
 
 
-def confidence(probabilities) -> float:
+def confidence(probabilities: list[float]) -> float:
     """Peak-over-uniform statistic from the public Confidence page; not a calibrated accuracy."""
     count = len(probabilities)
     return max(0.0, min(1.0, (count * max(probabilities) - 1) / (count - 1)))

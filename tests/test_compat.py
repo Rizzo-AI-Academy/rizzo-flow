@@ -8,7 +8,7 @@ from rizzo_flow.engine import Engine
 
 
 @pytest.fixture
-def body():
+def body() -> dict:
     return {
         "state": "Help! My payouts have been failing for 3 days.",
         "model": "jev-latest",
@@ -32,11 +32,11 @@ def body():
     }
 
 
-def client(api_key=""):
+def client(api_key: str = "") -> TestClient:
     return TestClient(create_app(Engine(FakeBackend()), api_key=api_key))
 
 
-def test_systemone_wire_shape(body):
+def test_systemone_wire_shape(body: dict) -> None:
     with client() as http:
         response = http.post("/v1/systemone", json=body)
         assert response.status_code == 200
@@ -57,7 +57,7 @@ def test_systemone_wire_shape(body):
     assert result["usage"]["output_tokens"] == 0 and result["usage"]["input_tokens"] > 0
 
 
-def test_no_abstention_and_structured_text(body):
+def test_no_abstention_and_structured_text(body: dict) -> None:
     native, options = to_native(SystemOneRequest.model_validate(body))
     assert all(not q.policy.allow_abstain for q in native.questions.values())
     assert options["department"] == ["Billing team", "technical", "sales"]
@@ -71,13 +71,13 @@ def test_no_abstention_and_structured_text(body):
     assert native.questions["is_urgent"].true_description == "Yes. Explicitly time-sensitive"
 
 
-def test_confidence_statistic():
+def test_confidence_statistic() -> None:
     assert confidence([1, 0, 0]) == 1
     assert confidence([1 / 3, 1 / 3, 1 / 3]) == pytest.approx(0)
     assert confidence([0.9, 0.06, 0.04]) == pytest.approx(0.85)
 
 
-def test_validation_models_and_auth(body):
+def test_validation_models_and_auth(body: dict) -> None:
     with client() as http:
         names = [m["name"] for m in http.get("/v1/models").json()["models"]]
         assert "rizzo-latest" in names and "jev-latest" in names
@@ -95,12 +95,12 @@ def test_validation_models_and_auth(body):
         assert http.get("/v1/models", headers={"Authorization": "Bearer secret"}).status_code == 200
 
 
-def test_twenty_six_answer_letters(body):
-    def choice(count):
+def test_twenty_six_answer_letters(body: dict) -> None:
+    def choice(count: int) -> dict:
         body["questions"]["department"]["criteria"] = {f"option {i}": None for i in range(count)}
         return body
 
-    def native(count, abstain):
+    def native(count: int, abstain: bool) -> dict:
         options = [{"id": f"o{i}", "description": f"Option {i}"} for i in range(count)]
         question = {"type": "choice", "instructions": "Pick", "options": options}
         question["policy"] = {"allow_abstain": abstain}

@@ -1,6 +1,6 @@
 """Public output schema: numeric validity and nullability are checked before returning JSON."""
 
-from typing import Annotated, ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, Self
 
 from pydantic import Field, model_serializer, model_validator
 
@@ -42,7 +42,7 @@ class Answer(Strict):
     input_tokens: int = Field(gt=0)
 
     @model_validator(mode="after")
-    def valid_distribution(self):
+    def valid_distribution(self) -> Self:
         if abs(sum(self.probabilities.values()) - 1) > 1e-6:
             raise ValueError("Output probabilities must sum to one")
         if (

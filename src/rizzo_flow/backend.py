@@ -6,6 +6,7 @@ import importlib.metadata
 import json
 import time
 from pathlib import Path
+from typing import Any, Self
 
 from .config import RUNTIME_REVISION, identify
 from .metadata import MlxMetadata
@@ -15,7 +16,7 @@ from .responses import Timing
 from .runtime import resolve
 
 
-def quantize_model(model, bits):
+def quantize_model(model: Any, bits: int) -> None:
     from mlx import nn
 
     native_predicate = model.quant_predicate
@@ -29,7 +30,7 @@ def quantize_model(model, bits):
     )
 
 
-def selected_logits(model, hidden, slots):
+def selected_logits(model: Any, hidden: Any, slots: list[int]) -> Any:
     """Project only declared answer tokens; works with BF16 and affine quantization."""
     import mlx.core as mx
 
@@ -55,7 +56,7 @@ def selected_logits(model, hidden, slots):
     return output.astype(mx.float32)
 
 
-def branch_cache(prefix_cache, batch_size):
+def branch_cache(prefix_cache: list[Any], batch_size: int) -> list[Any]:
     """Copy native cache objects and arrays, including rotating offsets; never mutate the prefix."""
     import mlx.core as mx
 
@@ -70,7 +71,7 @@ def branch_cache(prefix_cache, batch_size):
 class SparkBackend:
     def __init__(
         self,
-        model,
+        model: Any,
         tokenizer: Tokenizer,
         metadata: MlxMetadata,
         batch_size: int = 4,
@@ -85,7 +86,14 @@ class SparkBackend:
         self.prefill_chunk = prefill_chunk
 
     @classmethod
-    def load(cls, path, bits=None, device="auto", batch_size=4, prefill_chunk=512):
+    def load(
+        cls,
+        path: Path | str,
+        bits: int | None = None,
+        device: str = "auto",
+        batch_size: int = 4,
+        prefill_chunk: int = 512,
+    ) -> Self:
         path = Path(path).resolve()
         if not path.is_dir():
             raise ValueError(f"Model not found at {path}. Run `rizzo download` first.")
@@ -143,7 +151,7 @@ class SparkBackend:
         )
         return cls(model, tokenizer, metadata, batch_size, prefill_chunk)
 
-    def _prefill(self, tokens):
+    def _prefill(self, tokens: list[int]) -> list[Any]:
         import mlx.core as mx
 
         cache = self.model.make_cache()

@@ -32,7 +32,7 @@ def recorded(run: str) -> dict:
         ("rizzo-q8-v3-cuda", MlxMetadata),
     ],
 )
-def test_metadata_reproduces_a_recorded_run(run, record):
+def test_metadata_reproduces_a_recorded_run(run: str, record: type) -> None:
     model = recorded(run)
     metadata = record(**{k: v for k, v in model.items() if k != "fingerprint"})
     assert metadata.fingerprint == model["fingerprint"]
@@ -41,7 +41,7 @@ def test_metadata_reproduces_a_recorded_run(run, record):
     assert list(metadata.as_dict()) == list(model)
 
 
-def test_the_two_backends_report_different_identities():
+def test_the_two_backends_report_different_identities() -> None:
     llama = set(recorded("rizzo-q8_0-v3-llama-cuda"))
     mlx = set(recorded("rizzo-q8-v3-cuda"))
     assert llama - mlx == {
@@ -71,7 +71,7 @@ CURRENT_FORMAT = [
 
 
 @pytest.mark.parametrize("name", CURRENT_FORMAT)
-def test_report_survives_the_round_trip_unchanged(name):
+def test_report_survives_the_round_trip_unchanged(name: str) -> None:
     path = REPORTS.parent / name
     recorded = json.loads(path.read_text(encoding="utf-8"))
     assert EvaluationReport.model_validate(recorded).model_dump() == recorded
@@ -81,7 +81,7 @@ def test_report_survives_the_round_trip_unchanged(name):
     )
 
 
-def test_suite_summaries_survive_the_round_trip_unchanged():
+def test_suite_summaries_survive_the_round_trip_unchanged() -> None:
     """validate_checkpoint.py nests Summary blocks inside summary.json, one per suite.
 
     `spark-bf16-validation` is left out: it predates `decisions_per_second` and is not a
@@ -97,7 +97,7 @@ def test_suite_summaries_survive_the_round_trip_unchanged():
     assert checked == 13
 
 
-def test_the_comparison_script_reproduces_its_recorded_output():
+def test_the_comparison_script_reproduces_its_recorded_output() -> None:
     """scripts/compare_reports.py rebuilt results/precision-comparison.json, exactly."""
     sys.path.insert(0, str(REPORTS.parents[1] / "scripts"))
     from compare_reports import compare, read_report

@@ -8,6 +8,7 @@ by value, so a library built from another commit can crash instead of failing cl
 import ctypes
 import os
 import sys
+from collections.abc import Sequence
 from ctypes import (
     POINTER,
     c_bool,
@@ -203,7 +204,7 @@ class Library:
 
     _loaded: ClassVar[dict[Path, "Library"]] = {}
 
-    def __init__(self, directory: Path):
+    def __init__(self, directory: Path) -> None:
         self.directory = Path(directory).resolve()
         if llama_release.find_library(self.directory) is None:
             raise ValueError(f"{llama_release.library_name()} not found in {self.directory}")
@@ -219,7 +220,7 @@ class Library:
             setattr(self, name, function)
         verbose = os.environ.get(LOG_ENV) == "1"
 
-        def log(level, text, _):
+        def log(level: int, text: bytes, _: object) -> None:
             # Warnings and errors only; level 5 continues a line that was probably dropped.
             # The full-size window cache is our own choice (see Session.load), not news.
             if verbose or (
@@ -241,7 +242,7 @@ class Library:
             cls._loaded[directory] = cls(directory)
         return cls._loaded[directory]
 
-    def _open(self):
+    def _open(self) -> list[ctypes.CDLL]:
         folder = str(self.directory)
         if sys.platform == "win32":
             # Dependencies of the plug-ins (CUDA runtime, OpenMP) sit in the same folder.
@@ -320,7 +321,17 @@ def choose_device(devices: list[Device], wanted: str) -> Device | None:
 class Session:
     """One model and one context. Sequence 0 holds the shared prefix, the others its branches."""
 
-    def __init__(self, library, model, context, device, n_ctx, n_batch, n_seq_max, idle_free):
+    def __init__(
+        self,
+        library: "Library",
+        model: int,
+        context: int,
+        device: Device | None,
+        n_ctx: int,
+        n_batch: int,
+        n_seq_max: int,
+        idle_free: int | None,
+    ) -> None:
         self.library = library
         self.idle_free = idle_free  # free device memory before the model was loaded
         self.model = model
@@ -394,7 +405,7 @@ class Session:
             idle_free,
         )
 
-    def close(self):
+    def close(self) -> None:
         if self.context:
             self.library.llama_free(self.context)
             self.library.llama_model_free(self.model)
@@ -446,7 +457,13 @@ class Session:
 
     # --- compute --------------------------------------------------------------------------
 
-    def decode(self, tokens, positions, sequences, outputs=()) -> None:
+    def decode(
+        self,
+        tokens: list[int],
+        positions: Sequence[int],
+        sequences: Sequence[int],
+        outputs: Sequence[int] = (),
+    ) -> None:
         """One forward pass over a flat batch; logits are produced only at `outputs` indices."""
         count = len(tokens)
         if not 0 < count <= self.n_batch:

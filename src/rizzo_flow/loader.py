@@ -22,15 +22,15 @@ MLX_DEVICES = ("auto", "gpu", "cpu", "cuda", "mlx")
 
 
 def load_backend(
-    backend="llama",
+    backend: str = "llama",
     *,
-    size=DEFAULT_SIZE,
-    model=None,
-    quant=None,
-    bits=None,
-    device="auto",
-    ctx=8192,
-    batch_size=4,
+    size: str = DEFAULT_SIZE,
+    model: Path | str | None = None,
+    quant: str | None = None,
+    bits: int | None = None,
+    device: str = "auto",
+    ctx: int = 8192,
+    batch_size: int = 4,
     threads: int | None = None,
 ) -> ScoringBackend:
     if backend not in BACKENDS:

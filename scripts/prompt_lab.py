@@ -14,7 +14,9 @@ import string
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
+from types import ModuleType
 
 from semif_compare import chosen, dev_groups
 
@@ -27,7 +29,7 @@ from rizzo_flow.schema import ChoiceQuestion, Option, Policy, Request
 SEMIF = Path(os.environ.get("SEMIF_DIR", Path.home() / "Git-projects" / "SemIf"))
 
 
-def semif_evaluator():
+def semif_evaluator() -> ModuleType:
     """SemIf's own scorer, put on the path only when a run actually needs it."""
     sys.path[:0] = [str(SEMIF / "benchmarks")]
     import evaluate
@@ -35,7 +37,7 @@ def semif_evaluator():
     return evaluate
 
 
-def read(path):
+def read(path: Path | str) -> list[dict]:
     return [json.loads(x) for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
@@ -43,13 +45,13 @@ def split(rows: list[dict], perturbed: list[dict]) -> dict[str, tuple[list[dict]
     """Alternate source groups inside each family: even -> dev, odd -> held-out."""
     dev = dev_groups(rows)
 
-    def part(rs, key, keep):
+    def part(rs: list[dict], key: Callable[[dict], str], keep: bool) -> list[dict]:
         return [r for r in rs if (key(r) in dev) == keep]
 
-    def source(r):
+    def source(r: dict) -> str:
         return r["provenance"]["source_group_id"]
 
-    def group(r):
+    def group(r: dict) -> str:
         return r["group_id"]
 
     return {
@@ -67,11 +69,11 @@ V2_SYSTEM = (
 )
 
 
-def V2_STATE(state):
+def V2_STATE(state: object) -> str:
     return prompts.canonical({"evidence": state})
 
 
-def V2_QUESTION(instruction, descriptions):
+def V2_QUESTION(instruction: str, descriptions: list[str]) -> str:
     payload = {
         "question": instruction,
         "options": [
@@ -93,7 +95,7 @@ SYSTEM_A = (
 )
 
 
-def text_state(state):
+def text_state(state: object) -> str:
     if isinstance(state, str) and "</evidence>" not in state.lower():
         body = state.strip()
     else:
@@ -101,7 +103,11 @@ def text_state(state):
     return f"<evidence>\n{body}\n</evidence>"
 
 
-def mcq(instruction, descriptions, closing="Answer with the letter of the best option."):
+def mcq(
+    instruction: str,
+    descriptions: list[str],
+    closing: str = "Answer with the letter of the best option.",
+) -> str:
     lines = [
         f"{letter}. {d}" for letter, d in zip(string.ascii_uppercase, descriptions, strict=False)
     ]
@@ -126,7 +132,7 @@ SYSTEM_ORDER = SYSTEM_A.replace(
 )
 
 
-def json_state(state):
+def json_state(state: object) -> str:
     return json.dumps({"evidence": state}, ensure_ascii=False, separators=(",", ":"))
 
 
@@ -173,7 +179,9 @@ def run(engine: Engine, rows: list[dict]) -> list[dict]:
     return out
 
 
-def score(engine: Engine, base, perturbed, smoke) -> tuple[dict, dict]:
+def score(
+    engine: Engine, base: list[dict], perturbed: list[dict], smoke: list[dict]
+) -> tuple[dict, dict]:
     evaluate = semif_evaluator()
     report = {}
     predictions = {}

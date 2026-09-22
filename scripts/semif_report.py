@@ -48,11 +48,11 @@ def main() -> None:
     held = dict(zip(gold, held_out(gold["authored144"], gold["perturbations108"]), strict=True))
     ours = {name: predictions(args.run, name) for name in gold}
 
-    def subset(rows, part):
+    def subset(rows: list[dict], part: list[dict]) -> list[dict]:
         wanted = {row["id"] for row in part}
         return [row for row in rows if row["id"] in wanted]
 
-    def score(rows, part):
+    def score(rows: list[dict], part: list[dict]) -> float:
         return evaluate.evaluate(part, subset(rows, part))["mean_family_balanced_accuracy"]
 
     report = {
