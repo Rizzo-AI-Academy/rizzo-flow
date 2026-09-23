@@ -23,7 +23,7 @@ PAGE = Path("docs/index.html")
 LINE = re.compile(r"^(\s*var DEMO = )(\{.*\})(;\s*)$", re.MULTILINE)
 
 
-def wire(kind, record):
+def wire(kind: str, record: dict) -> dict:
     if kind == "bool":
         return {"type": "noul", "instructions": record["q"]}
     if kind == "class":
@@ -35,7 +35,7 @@ def wire(kind, record):
     return {"type": "score", "instructions": record["q"], "criteria": record["levels"]}
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=BACKENDS, default="llama")
     parser.add_argument("--quant")
@@ -49,7 +49,8 @@ def main():
     demo = json.loads(found.group(2))
     backend = load_backend(args.backend, quant=args.quant, bits=args.bits, device=args.device)
     engine = Engine(backend)
-    served = compat.model_name(backend.metadata)
+    metadata = backend.metadata
+    served = compat.model_name(metadata)
     times = []
     for preset, languages in demo["data"].items():
         for language, entry in languages.items():
@@ -68,17 +69,17 @@ def main():
                     mark = time.perf_counter()
                     response = engine.decide(native)
                     seconds.append(time.perf_counter() - mark)
-                answer = compat.from_native(request, response, options, served)["answers"]["q"]
+                answer = compat.from_native(request, response, options, metadata).answers["q"]
                 record["ms"] = round(statistics.median(seconds[1:]) * 1000)
                 times.append(record["ms"])
                 if kind == "bool":
-                    record["p"] = round(answer["noul"], 4)
+                    record["p"] = round(answer.noul, 4)
                 elif kind == "class":
-                    record["choice"] = answer["choice"]
-                    record["probs"] = {k: round(v, 4) for k, v in answer["probabilities"].items()}
+                    record["choice"] = answer.choice
+                    record["probs"] = {k: round(v, 4) for k, v in answer.probabilities.items()}
                 else:
-                    record["score"] = round(answer["score"], 3)
-                    record["probs"] = [round(v, 4) for v in answer["probabilities"].values()]
+                    record["score"] = round(answer.score, 3)
+                    record["probs"] = [round(v, 4) for v in answer.probabilities.values()]
                 print(
                     preset,
                     language,

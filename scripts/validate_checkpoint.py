@@ -1,9 +1,12 @@
 """Run real-weight checks and preserve raw evidence. Execute from the repository root."""
 
+from __future__ import annotations
+
 import argparse
 import json
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
 
@@ -12,11 +15,14 @@ from rizzo_flow.cli import read_jsonl, write_json
 from rizzo_flow.engine import Engine
 from rizzo_flow.evaluation import evaluate
 from rizzo_flow.loader import BACKENDS, load_backend
-from rizzo_flow.prompts import compile_request
+from rizzo_flow.prompts import Compiled, compile_request
 from rizzo_flow.schema import Request
 
+if TYPE_CHECKING:  # MLX is an optional install
+    from rizzo_flow.backend import SparkBackend
 
-def projection_delta(backend, job):
+
+def projection_delta(backend: SparkBackend, job: Compiled) -> float:
     """MLX only: the selected-row projection against the full vocabulary head."""
     import mlx.core as mx
 
@@ -34,7 +40,7 @@ def projection_delta(backend, job):
     return delta
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=BACKENDS, default="llama")
     parser.add_argument("--size", default="4b")
@@ -82,12 +88,12 @@ def main():
         report = evaluate(
             engine, fixtures, repeats=2 if name == "long-state" else 1, compare_modes=True
         )
-        write_json(report, out / f"{name}.json")
-        reports[name] = report["summary"]
-        print(name, json.dumps(report["summary"], ensure_ascii=False), flush=True)
+        write_json(report.model_dump(), out / f"{name}.json")
+        reports[name] = report.summary.model_dump()
+        print(name, json.dumps(reports[name], ensure_ascii=False), flush=True)
     write_json(
         {
-            "model": backend.metadata,
+            "model": backend.metadata.as_dict(),
             "selected_projection_max_logit_delta": delta,
             "validation_seconds": time.perf_counter() - started,
             "suites": reports,

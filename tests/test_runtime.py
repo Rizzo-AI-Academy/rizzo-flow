@@ -8,7 +8,7 @@ import pytest
 from rizzo_flow import runtime
 
 
-def fake_mlx(monkeypatch, gpu, platform):
+def fake_mlx(monkeypatch: pytest.MonkeyPatch, gpu: bool, platform: str) -> None:
     mx = SimpleNamespace(cpu="CPU", gpu="GPU", is_available=lambda device: device == "CPU" or gpu)
     monkeypatch.setattr(runtime, "import_mlx", lambda: mx)
     monkeypatch.setattr(sys, "platform", platform)
@@ -26,7 +26,13 @@ def fake_mlx(monkeypatch, gpu, platform):
         (False, "win32", "auto", ("CPU", "cpu")),
     ],
 )
-def test_resolve(monkeypatch, gpu, platform, device, expected):
+def test_resolve(
+    monkeypatch: pytest.MonkeyPatch,
+    gpu: bool,
+    platform: str,
+    device: str,
+    expected: tuple[str, str],
+) -> None:
     fake_mlx(monkeypatch, gpu, platform)
     assert runtime.resolve(device) == expected
 
@@ -40,12 +46,14 @@ def test_resolve(monkeypatch, gpu, platform, device, expected):
         (True, "darwin", "cuda"),
     ],
 )
-def test_resolve_rejects_missing_or_wrong_gpu(monkeypatch, gpu, platform, device):
+def test_resolve_rejects_missing_or_wrong_gpu(
+    monkeypatch: pytest.MonkeyPatch, gpu: bool, platform: str, device: str
+) -> None:
     fake_mlx(monkeypatch, gpu, platform)
     with pytest.raises(ValueError, match="--device"):
         runtime.resolve(device)
 
 
-def test_resolve_rejects_unknown_name():
+def test_resolve_rejects_unknown_name() -> None:
     with pytest.raises(ValueError, match="one of"):
         runtime.resolve("tpu")

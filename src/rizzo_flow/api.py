@@ -7,7 +7,16 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from .compat import SystemOneRequest, from_native, list_models, resolve_model, to_native
+from .compat import (
+    ModelList,
+    SystemOneRequest,
+    SystemOneResponse,
+    from_native,
+    list_models,
+    resolve_model,
+    to_native,
+)
+from .engine import Engine
 from .responses import Response
 from .schema import Request
 
@@ -17,7 +26,7 @@ SNAKE = Path(__file__).with_name("snake.html")
 LOGO = Path(__file__).with_name("logo.png")
 
 
-def create_app(engine, api_key=None):
+def create_app(engine: Engine, api_key: str | None = None) -> FastAPI:
     app = FastAPI(
         title="Rizzo Flow",
         version="0.2.0",
@@ -25,7 +34,7 @@ def create_app(engine, api_key=None):
     )
     api_key = api_key if api_key is not None else os.environ.get(API_KEY_ENV)
 
-    def authorize(authorization: str | None = Header(default=None)):
+    def authorize(authorization: str | None = Header(default=None)) -> None:
         # Bearer auth mirrors the hosted API; it is enforced only when a key is configured.
         if api_key and not hmac.compare_digest(
             (authorization or "").encode(), f"Bearer {api_key}".encode()
@@ -33,43 +42,48 @@ def create_app(engine, api_key=None):
             raise HTTPException(status_code=401, detail="Missing or invalid API key")
 
     @app.get("/health")
-    def health():
-        return {"status": "ready", "model": engine.backend.metadata}
+    def health() -> dict:
+        return {"status": "ready", "model": engine.backend.metadata.as_dict()}
 
     @app.post("/v1/decisions", response_model=Response)
-    def decisions(request: Request):
+    def decisions(request: Request) -> Response:
         try:
             return engine.decide(request)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
-    @app.post("/v1/systemone", dependencies=[Depends(authorize)])
-    def systemone(request: SystemOneRequest):
+    @app.post(
+        "/v1/systemone",
+        response_model=SystemOneResponse,
+        dependencies=[Depends(authorize)],
+    )
+    def systemone(request: SystemOneRequest) -> SystemOneResponse:
         try:
-            served = resolve_model(request.model, engine.backend.metadata)
+            metadata = engine.backend.metadata
+            resolve_model(request.model, metadata)  # rejects a model this server cannot serve
             native, options = to_native(request)
-            return from_native(request, engine.decide(native), options, served)
+            return from_native(request, engine.decide(native), options, metadata)
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
-    @app.get("/v1/models", dependencies=[Depends(authorize)])
-    def models():
+    @app.get("/v1/models", response_model=ModelList, dependencies=[Depends(authorize)])
+    def models() -> ModelList:
         return list_models(engine.backend.metadata)
 
     @app.get("/playground", response_class=HTMLResponse, include_in_schema=False)
-    def playground():
+    def playground() -> str:
         return PLAYGROUND.read_text(encoding="utf-8")
 
     @app.get("/snake", response_class=HTMLResponse, include_in_schema=False)
-    def snake():
+    def snake() -> str:
         return SNAKE.read_text(encoding="utf-8")
 
     @app.get("/playground/logo.png", include_in_schema=False)
-    def logo():
+    def logo() -> FileResponse:
         return FileResponse(LOGO, media_type="image/png")
 
     @app.get("/", include_in_schema=False)
-    def root():
+    def root() -> RedirectResponse:
         return RedirectResponse("/playground")
 
     return app

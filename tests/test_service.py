@@ -1,6 +1,8 @@
 import copy
+import json
 
 import pytest
+from fakes import CharacterTokenizer, FakeBackend
 from fastapi.testclient import TestClient
 
 from rizzo_flow.api import create_app
@@ -11,32 +13,8 @@ from rizzo_flow.prompts import compile_request
 from rizzo_flow.schema import Request
 
 
-class CharacterTokenizer:
-    """Test tokenizer; deliberately distinct from real Spark tokenizer integration tests."""
-
-    pad_token_id = 0
-    eos_token_id = 1
-
-    def encode(self, value, **kwargs):
-        return [ord(c) for c in value]
-
-    def apply_chat_template(self, messages, **kwargs):
-        assert kwargs["enable_thinking"] is False
-        return "\n".join(m["content"] for m in messages) + "\nASSISTANT:"
-
-
-class FakeBackend:
-    tokenizer = CharacterTokenizer()
-
-    def __init__(self):
-        self.metadata = {"fingerprint": "test-only"}
-
-    def score(self, prefix, jobs, mode):
-        return {j.id: [0, 10] + [0] * (len(j.slots) - 2) for j in jobs}, {"generated_tokens": 0}
-
-
 @pytest.fixture
-def payload():
+def payload() -> dict:
     return {
         "state": {"ticket": "Cannot log in"},
         "questions": {
@@ -53,7 +31,7 @@ def payload():
     }
 
 
-def test_shared_prefix_and_state_mutation(payload):
+def test_shared_prefix_and_state_mutation(payload: dict) -> None:
     request = Request.model_validate(payload)
     prefix, jobs = compile_request(CharacterTokenizer(), request, 8192)
     assert all(job.tokens[: len(prefix)] == prefix for job in jobs)
@@ -62,12 +40,12 @@ def test_shared_prefix_and_state_mutation(payload):
     assert other != prefix
 
 
-def test_limits_reject_without_truncation(payload):
+def test_limits_reject_without_truncation(payload: dict) -> None:
     with pytest.raises(ValueError, match="no truncation"):
         Engine(FakeBackend(), ctx=10).decide(payload)
 
 
-def test_api_and_all_input_validation(payload):
+def test_api_and_all_input_validation(payload: dict) -> None:
     with TestClient(create_app(Engine(FakeBackend()))) as client:
         assert client.get("/health").json()["status"] == "ready"
         response = client.post("/v1/decisions", json=payload)
@@ -78,19 +56,27 @@ def test_api_and_all_input_validation(payload):
         assert client.post("/v1/decisions", json=payload).status_code == 422
 
 
-def test_temperature_fit_and_model_binding():
+def test_temperature_fit_and_model_binding() -> None:
     rows = [{"type": "choice", "logits": [0, 8], "label_index": int(i % 2 == 0)} for i in range(20)]
-    calibration = fit_temperature(rows, "test-only")
+    calibration = fit_temperature(rows, FakeBackend().metadata.fingerprint)
     assert calibration.temperatures["choice"] > 1
     metric = calibration.fit_metrics["choice"]
-    assert metric["fit_nll_after"] < metric["fit_nll_before"]
+    assert metric.fit_nll_after < metric.fit_nll_before
     Engine(FakeBackend(), calibration=calibration)
     calibration.fingerprint = "different"
     with pytest.raises(ValueError, match="different"):
         Engine(FakeBackend(), calibration=calibration)
 
 
-def test_evaluation_coverage_raw_evidence(payload):
+def test_evaluation_coverage_raw_evidence(payload: dict) -> None:
+    # A score question as well, so the numeric side of the report is exercised: the fake
+    # favours the second of three levels, so the expected value is exactly 1.
+    payload["questions"]["severity"] = {
+        "type": "score",
+        "instructions": "How bad is it?",
+        "levels": ["low", "medium", "high"],
+        "policy": {"allow_abstain": False},
+    }
     fixtures = [
         {
             "id": "sample",
@@ -98,10 +84,21 @@ def test_evaluation_coverage_raw_evidence(payload):
             "expected": {
                 "route": {"label": "access", "status": "ok"},
                 "supported": {"label": "true"},
+                "severity": {"value": 1},
             },
         }
     ]
     report = evaluate(Engine(FakeBackend()), fixtures, compare_modes=True)
-    assert report["summary"]["categorical"]["accuracy"] == 1
-    assert report["summary"]["mode_comparison"]["changed_argmaxes"] == 0
-    assert report["rows"][0]["response"]["timing"]["generated_tokens"] == 0
+    assert report.summary.categorical.accuracy == 1
+    assert report.summary.mode_comparison.changed_argmaxes == 0
+    assert report.rows[0].response.timing.generated_tokens == 0
+    numeric = report.summary.numeric
+    assert numeric.rows == 1
+    group = '{"support":[0.0,2.0],"type":"score","unit":null}'
+    assert list(numeric.by_type_unit_and_support) == [group]
+    assert numeric.by_type_unit_and_support[group].answered == 1
+    assert numeric.by_type_unit_and_support[group].mae_on_answered == pytest.approx(0, abs=1e-4)
+    # The report is also a file format: it must survive the round trip to JSON.
+    dumped = json.loads(json.dumps(report.model_dump()))
+    assert dumped["summary"]["requests"] == 1
+    assert dumped["rows"][0]["expected"]["severity"] == {"value": 1}

@@ -12,26 +12,21 @@ import argparse
 import gzip
 import json
 import sys
-from collections import defaultdict
 from pathlib import Path
 
-from semif_compare import read, write
+from semif_compare import chosen, dev_groups, read, write
 
 
-def held_out(rows, perturbed):
-    """Same split as `prompt_lab.split`: source groups alternate inside each family, the odd
-    ones were never used to choose the prompt."""
-    families = defaultdict(set)
-    for row in rows:
-        families[row["family"]].add(row["group_id"])
-    dev = {g for groups in families.values() for i, g in enumerate(sorted(groups)) if i % 2 == 0}
+def held_out(rows: list[dict], perturbed: list[dict]) -> tuple[list[dict], list[dict]]:
+    """The half of the source groups the prompt was never chosen on."""
+    dev = dev_groups(rows)
     return (
         [row for row in rows if row["group_id"] not in dev],
         [row for row in perturbed if row["provenance"]["source_group_id"] not in dev],
     )
 
 
-def predictions(folder: Path, name: str):
+def predictions(folder: Path, name: str) -> list[dict]:
     plain, packed = folder / f"{name}.jsonl", folder / f"{name}.jsonl.gz"
     if plain.is_file():
         return read(plain)
@@ -39,11 +34,7 @@ def predictions(folder: Path, name: str):
         return [json.loads(line) for line in stream if line.strip()]
 
 
-def chosen(row):
-    return row["option_ids"][row["probabilities"].index(max(row["probabilities"]))]
-
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run", type=Path)
     parser.add_argument("--semif", type=Path, required=True, help="SemIf repository checkout")
@@ -57,11 +48,11 @@ def main():
     held = dict(zip(gold, held_out(gold["authored144"], gold["perturbations108"]), strict=True))
     ours = {name: predictions(args.run, name) for name in gold}
 
-    def subset(rows, part):
+    def subset(rows: list[dict], part: list[dict]) -> list[dict]:
         wanted = {row["id"] for row in part}
         return [row for row in rows if row["id"] in wanted]
 
-    def score(rows, part):
+    def score(rows: list[dict], part: list[dict]) -> float:
         return evaluate.evaluate(part, subset(rows, part))["mean_family_balanced_accuracy"]
 
     report = {

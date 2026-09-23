@@ -4,7 +4,9 @@ import os
 import sys
 import sysconfig
 import types
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 # User-facing names. `gpu` means whichever accelerator this install has.
 DEVICES = ("auto", "gpu", "mlx", "cuda", "cpu")
@@ -14,7 +16,7 @@ INSTALL_HINT = (
 )
 
 
-def prepare():
+def prepare() -> None:
     """Make the MLX stack importable on Windows; does nothing elsewhere. Safe to call twice."""
     if sys.platform != "win32":
         return
@@ -32,7 +34,7 @@ def prepare():
         os.environ["PATH"] = os.pathsep.join([*found, os.environ.get("PATH", "")])
 
 
-def import_mlx():
+def import_mlx() -> Any:
     prepare()
     try:
         import mlx.core as mx
@@ -41,14 +43,14 @@ def import_mlx():
     return mx
 
 
-def accelerator(mx) -> str | None:
+def accelerator(mx: Any) -> str | None:
     """Name of the GPU backend of this install, if it has a usable one."""
     if not mx.is_available(mx.gpu):
         return None
     return "mlx" if sys.platform == "darwin" else "cuda"
 
 
-def resolve(device: str):
+def resolve(device: str) -> tuple[Any, str]:
     """Map a user-facing device name to (mlx device, backend name: mlx | cuda | cpu)."""
     if device not in DEVICES:
         raise ValueError(f"Device must be one of: {', '.join(DEVICES)}")
@@ -63,13 +65,26 @@ def resolve(device: str):
     return mx.gpu, gpu
 
 
-def describe() -> dict:
-    """What `rizzo devices` prints: the backends this install can actually use."""
+@dataclass(frozen=True)
+class MlxReport:
+    """What `rizzo devices` prints about MLX, when MLX is installed at all."""
+
+    mlx_version: str
+    platform: str
+    available: list[str]
+    auto_selects: str
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def describe() -> MlxReport:
+    """The compute backends this install can actually use."""
     mx = import_mlx()
     gpu = accelerator(mx)
-    return {
-        "mlx_version": mx.__version__,
-        "platform": sys.platform,
-        "available": [name for name in (gpu, "cpu") if name],
-        "auto_selects": gpu or "cpu",
-    }
+    return MlxReport(
+        mlx_version=mx.__version__,
+        platform=sys.platform,
+        available=[name for name in (gpu, "cpu") if name],
+        auto_selects=gpu or "cpu",
+    )

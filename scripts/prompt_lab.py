@@ -7,37 +7,53 @@ SemIf fixtures are read from $SEMIF_DIR (default ~/Git-projects/SemIf). Variants
 `rizzo_flow.prompts`; nothing here changes the shipped prompt.
 """
 
+import argparse
 import json
 import os
 import string
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
+from types import ModuleType
 
-SEMIF = Path(os.environ.get("SEMIF_DIR", Path.home() / "Git-projects" / "SemIf"))
-sys.path[:0] = [str(SEMIF / "benchmarks")]
-import evaluate
+from semif_compare import chosen, dev_groups
 
 from rizzo_flow import prompts
 from rizzo_flow.backend import SparkBackend
 from rizzo_flow.engine import Engine
 from rizzo_flow.evaluation import evaluate as smoke_evaluate
+from rizzo_flow.schema import ChoiceQuestion, Option, Policy, Request
+
+SEMIF = Path(os.environ.get("SEMIF_DIR", Path.home() / "Git-projects" / "SemIf"))
 
 
-def read(path):
+def semif_evaluator() -> ModuleType:
+    """SemIf's own scorer, put on the path only when a run actually needs it."""
+    sys.path[:0] = [str(SEMIF / "benchmarks")]
+    import evaluate
+
+    return evaluate
+
+
+def read(path: Path | str) -> list[dict]:
     return [json.loads(x) for x in Path(path).read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
-def split(rows, perturbed):
+def split(rows: list[dict], perturbed: list[dict]) -> dict[str, tuple[list[dict], list[dict]]]:
     """Alternate source groups inside each family: even -> dev, odd -> held-out."""
-    families = defaultdict(set)
-    for row in rows:
-        families[row["family"]].add(row["group_id"])
-    dev = {g for groups in families.values() for i, g in enumerate(sorted(groups)) if i % 2 == 0}
-    part = lambda rs, key, keep: [r for r in rs if (key(r) in dev) == keep]
-    source = lambda r: r["provenance"]["source_group_id"]
-    group = lambda r: r["group_id"]
+    dev = dev_groups(rows)
+
+    def part(rs: list[dict], key: Callable[[dict], str], keep: bool) -> list[dict]:
+        return [r for r in rs if (key(r) in dev) == keep]
+
+    def source(r: dict) -> str:
+        return r["provenance"]["source_group_id"]
+
+    def group(r: dict) -> str:
+        return r["group_id"]
+
     return {
         "dev": (part(rows, group, True), part(perturbed, source, True)),
         "held": (part(rows, group, False), part(perturbed, source, False)),
@@ -53,16 +69,16 @@ V2_SYSTEM = (
 )
 
 
-def V2_STATE(state):
+def V2_STATE(state: object) -> str:
     return prompts.canonical({"evidence": state})
 
 
-def V2_QUESTION(instruction, descriptions):
+def V2_QUESTION(instruction: str, descriptions: list[str]) -> str:
     payload = {
         "question": instruction,
         "options": [
             {"letter": letter, "description": description}
-            for letter, description in zip(string.ascii_uppercase, descriptions)
+            for letter, description in zip(string.ascii_uppercase, descriptions, strict=False)
         ],
     }
     return "\n" + json.dumps(payload, ensure_ascii=False)
@@ -79,7 +95,7 @@ SYSTEM_A = (
 )
 
 
-def text_state(state):
+def text_state(state: object) -> str:
     if isinstance(state, str) and "</evidence>" not in state.lower():
         body = state.strip()
     else:
@@ -87,8 +103,14 @@ def text_state(state):
     return f"<evidence>\n{body}\n</evidence>"
 
 
-def mcq(instruction, descriptions, closing="Answer with the letter of the best option."):
-    lines = [f"{letter}. {d}" for letter, d in zip(string.ascii_uppercase, descriptions)]
+def mcq(
+    instruction: str,
+    descriptions: list[str],
+    closing: str = "Answer with the letter of the best option.",
+) -> str:
+    lines = [
+        f"{letter}. {d}" for letter, d in zip(string.ascii_uppercase, descriptions, strict=False)
+    ]
     tail = f"\n\nQuestion: {instruction}\n\nOptions:\n" + "\n".join(lines)
     return tail + (f"\n\n{closing}" if closing else "")
 
@@ -110,7 +132,7 @@ SYSTEM_ORDER = SYSTEM_A.replace(
 )
 
 
-def json_state(state):
+def json_state(state: object) -> str:
     return json.dumps({"evidence": state}, ensure_ascii=False, separators=(",", ":"))
 
 
@@ -128,36 +150,39 @@ VARIANTS = {
 }
 
 
-def run(engine, rows):
+def run(engine: Engine, rows: list[dict]) -> list[dict]:
     out = []
     for row in rows:
-        request = {
-            "state": row["state"],
-            "mode": "direct",
-            "questions": {
-                "q": {
-                    "type": "choice",
-                    "instructions": row["question"],
-                    "policy": {"allow_abstain": False},
-                    "options": [
-                        {"id": f"o{i}", "description": o["description"]}
+        request = Request(
+            state=row["state"],
+            mode="direct",
+            questions={
+                "q": ChoiceQuestion(
+                    type="choice",
+                    instructions=row["question"],
+                    policy=Policy(allow_abstain=False),
+                    options=[
+                        Option(id=f"o{i}", description=o["description"])
                         for i, o in enumerate(row["options"])
                     ],
-                }
+                )
             },
-        }
-        answer = engine.decide(request)["answers"]["q"]
+        )
+        answer = engine.decide(request).answers["q"]
         out.append(
             {
                 "id": row["id"],
                 "option_ids": [o["id"] for o in row["options"]],
-                "probabilities": list(answer["probabilities"].values()),
+                "probabilities": list(answer.probabilities.values()),
             }
         )
     return out
 
 
-def score(engine, base, perturbed, smoke):
+def score(
+    engine: Engine, base: list[dict], perturbed: list[dict], smoke: list[dict]
+) -> tuple[dict, dict]:
+    evaluate = semif_evaluator()
     report = {}
     predictions = {}
     for name, rows in (("base", base), ("perturbed", perturbed)):
@@ -173,24 +198,34 @@ def score(engine, base, perturbed, smoke):
     # Stability: does the semantic choice survive each meaning-preserving perturbation?
     by_id = {p["id"]: p for p in predictions["base"]}
     flips = defaultdict(int)
-    for row, p in zip(perturbed, predictions["perturbed"]):
+    for row, p in zip(perturbed, predictions["perturbed"], strict=True):
         ref = by_id.get(row["provenance"]["base_id"])
         if ref:
-            pick = lambda x: x["option_ids"][x["probabilities"].index(max(x["probabilities"]))]
-            flips[row["provenance"]["variant"]] += pick(ref) != pick(p)
+            flips[row["provenance"]["variant"]] += chosen(ref) != chosen(p)
     report["flips"] = dict(flips)
-    summary = smoke_evaluate(engine, smoke)["summary"]
+    summary = smoke_evaluate(engine, smoke).summary
     report["smoke"] = {
-        "accuracy": round(summary["categorical"]["accuracy"], 3),
-        "status_accuracy": round(summary["status_accuracy"], 3),
-        "nll": round(summary["categorical"]["nll"], 3),
+        "accuracy": round(summary.categorical.accuracy, 3),
+        "status_accuracy": round(summary.status_accuracy, 3),
+        "nll": round(summary.categorical.nll, 3),
     }
     return report, predictions
 
 
-def main():
-    which = sys.argv[1]  # dev | held
-    names = sys.argv[2].split(",") if len(sys.argv) > 2 else list(VARIANTS)
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("split", choices=("dev", "held"))
+    parser.add_argument(
+        "variants",
+        nargs="?",
+        default=",".join(VARIANTS),
+        help="Comma-separated; defaults to every variant",
+    )
+    args = parser.parse_args()
+    which, names = args.split, args.variants.split(",")
+    unknown = [name for name in names if name not in VARIANTS]
+    if unknown:
+        parser.error(f"Unknown variants: {', '.join(unknown)}")
     data = SEMIF / "benchmarks" / "data"
     base, perturbed = split(
         read(data / "authored144.jsonl"), read(data / "perturbations108.jsonl")
