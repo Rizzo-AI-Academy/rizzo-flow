@@ -177,6 +177,7 @@ IGPU = Device(2, "Vulkan0", "Intel(R) UHD Graphics", "igpu", "Vulkan", 32 << 30)
 RADEON = Device(3, "Vulkan1", "AMD Radeon RX 7900 XTX", "gpu", "Vulkan", 24 << 30)
 SMALL = Device(4, "Vulkan2", "AMD Radeon RX 6600", "gpu", "Vulkan", 8 << 30)
 GEFORCE = Device(5, "CUDA0", "NVIDIA GeForce RTX 5060 Ti", "gpu", "CUDA", 16 << 30)
+MTL = Device(6, "MTL0", "Apple M4 GPU", "gpu", "MTL", 16 << 30)
 
 
 def test_device_choice():
@@ -187,11 +188,17 @@ def test_device_choice():
     assert choose_device([CPU, IGPU], "auto") is IGPU
     assert choose_device([CPU], "auto") is None  # no GPU: the CPU, without an error
     assert choose_device(machine, "vulkan") is RADEON
+    assert choose_device(machine, "VULKAN") is RADEON  # family matching is case-insensitive
     assert choose_device([CPU, GEFORCE], "cuda") is GEFORCE
     with pytest.raises(ValueError, match="no such GPU"):
         choose_device([CPU], "gpu")  # an explicit request is never downgraded
     with pytest.raises(ValueError, match="rizzo download"):
         choose_device(machine, "cuda")
+
+
+def test_metal_selects_the_mtl_backend_case_insensitively():
+    assert choose_device([CPU, MTL], "metal") is MTL
+    assert choose_device([CPU, MTL], "METAL") is MTL
 
 
 def test_loader_rejects_options_of_the_other_backend(tmp_path):

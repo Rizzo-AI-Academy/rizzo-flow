@@ -280,7 +280,7 @@ def choose_device(devices: list[Device], wanted: str) -> Device | None:
 
     `auto` prefers a discrete GPU, then an integrated one, then the CPU. Anything else is a
     request: `gpu` for any GPU, or text matched against backend, name and description
-    (`cuda`, `vulkan`, `metal`, `Vulkan1`, `radeon`). A request that cannot be met raises.
+    (`cuda`, `vulkan`, `metal`/`MTL`, `Vulkan1`, `radeon`). A request that cannot be met raises.
     """
     gpus = sorted(
         (d for d in devices if d.kind in ("gpu", "igpu")),
@@ -292,10 +292,15 @@ def choose_device(devices: list[Device], wanted: str) -> Device | None:
         return gpus[0] if gpus else None
     if wanted != "gpu":
         needle = wanted.lower()
+        needles = (needle, "mtl") if needle == "metal" else (needle,)
         gpus = [
             d
             for d in gpus
-            if needle in (d.backend.lower(), d.name.lower()) or needle in d.description.lower()
+            if any(
+                candidate in value.lower()
+                for candidate in needles
+                for value in (d.backend, d.name, d.description)
+            )
         ]
     if not gpus:
         seen = ", ".join(f"{d.name} ({d.description})" for d in devices) or "none"
