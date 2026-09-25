@@ -166,8 +166,10 @@ def run_model(rows, args):
 
     backend = load_backend(
         "llama",
+        size=args.size,
         model=args.model,
         quant=None if args.model else args.quant,
+        weights=None if args.model else args.weights,
         device=args.device,
         ctx=args.ctx,
     )
@@ -229,7 +231,9 @@ def main():
     parser.add_argument("data", help="test split as JSONL (one parquet row per line)")
     parser.add_argument("--train", help="train split as JSONL, for the Prior baseline")
     parser.add_argument("--baselines", action="store_true", help="only Uniform and Prior, no model")
+    parser.add_argument("--size", default="4b", choices=("4b", "1.7b"))
     parser.add_argument("--quant", default="q8_0")
+    parser.add_argument("--weights", choices=("flow", "base"), help="pinned GGUF; default flow")
     parser.add_argument(
         "--model", help="a GGUF file instead of the pinned one (e.g. a merged LoRA)"
     )
@@ -247,7 +251,11 @@ def main():
         "data": str(Path(args.data)),
         "model": served,
         "gguf": args.model,
-        "kind": "general, zero-shot",
+        "kind": (
+            "fine-tuned (rizzo-flow LoRA; no typed-decisions workflows in training)"
+            if metadata.get("weights") == "flow"
+            else "general, zero-shot"
+        ),
         "metadata": {k: v for k, v in metadata.items() if isinstance(v, (str, int, float, bool))},
         "kl_floor": EPS,
         "timing": timing,

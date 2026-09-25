@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -274,11 +275,14 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def fetch(url: str, target: Path, sha256: str, progress=None, attempts: int = 5) -> Path:
+def fetch(
+    url: str, target: Path, sha256: str, progress=None, attempts: int = 5, token=None
+) -> Path:
     """Download to `target` unless a verified copy is already there; never keep a bad file.
 
     Multi-gigabyte transfers get cut: an interrupted download resumes from the bytes already
-    on disk (HTTP Range) instead of starting over, and only the sha256 decides success."""
+    on disk (HTTP Range) instead of starting over, and only the sha256 decides success.
+    `token` is a Bearer token for the first host only: it is not sent on to a redirect."""
     target = Path(target)
     if target.is_file() and sha256_file(target) == sha256:
         return target
@@ -292,6 +296,8 @@ def fetch(url: str, target: Path, sha256: str, progress=None, attempts: int = 5)
             headers["Range"] = f"bytes={have}-"
         try:
             request = urllib.request.Request(url, headers=headers)
+            if token:
+                request.add_unredirected_header("Authorization", f"Bearer {token}")
             with urllib.request.urlopen(request, timeout=120) as response:
                 resumed = have and getattr(response, "status", 200) == 206
                 total = int(response.headers.get("Content-Length") or 0) + (have if resumed else 0)
@@ -305,6 +311,17 @@ def fetch(url: str, target: Path, sha256: str, progress=None, attempts: int = 5)
             if total and done < total:
                 failure = f"connection closed at {done} of {total} bytes"
                 continue
+        except urllib.error.HTTPError as error:
+            if error.code in (401, 403, 404):  # retrying will not help
+                hint = (
+                    "the repository is private or gated: set HF_TOKEN (environment or .env) "
+                    "to a token that can read it"
+                    if "huggingface.co" in url
+                    else "access denied or not found"
+                )
+                raise ValueError(f"{target.name}: HTTP {error.code}, {hint}") from None
+            failure = str(error)
+            continue
         except (OSError, http.client.HTTPException) as error:  # resets, timeouts, short reads
             failure = str(error)
             continue

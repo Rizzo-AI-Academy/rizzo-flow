@@ -194,6 +194,47 @@ def test_interrupted_download_resumes_where_it_stopped(tmp_path):
     assert requests == [None, f"bytes={len(payload) // 3}-"]
 
 
+def test_token_goes_to_the_first_host_only_and_denials_fail_fast(tmp_path):
+    payload = b"private weights"
+    seen = []
+
+    class Hub(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append((self.path, self.headers.get("Authorization")))
+            if self.path == "/resolve/weights.gguf":  # the hub redirects to its CDN
+                self.send_response(302)
+                self.send_header("Location", "/cdn/weights.gguf")
+                self.end_headers()
+                return
+            if self.path == "/denied.gguf":
+                self.send_response(401)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Hub)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        digest = hashlib.sha256(payload).hexdigest()
+        target = release.fetch(
+            f"{base}/resolve/weights.gguf", tmp_path / "w.gguf", digest, token="t"
+        )
+        with pytest.raises(ValueError, match="HTTP 401"):
+            release.fetch(f"{base}/denied.gguf", tmp_path / "d.gguf", digest)
+    finally:
+        server.shutdown()
+    assert target.read_bytes() == payload
+    assert seen[:2] == [("/resolve/weights.gguf", "Bearer t"), ("/cdn/weights.gguf", None)]
+    assert len(seen) == 3  # a denial is not retried
+
+
 def test_install_and_locate(tmp_path, monkeypatch):
     at(monkeypatch, "win32", "x64", nvidia=False)
     monkeypatch.setattr(release, "library_name", lambda: "llama.dll")

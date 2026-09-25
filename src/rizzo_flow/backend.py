@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from .config import RUNTIME_REVISION, identify
+from .config import FLOW_CHECKPOINTS, RUNTIME_REVISION, identify
 from .prompts import PROMPT_VERSION, Compiled, canonical
 from .runtime import resolve
 
@@ -130,6 +130,10 @@ class SparkBackend:
             "mlx_lm": importlib.metadata.version("mlx-lm"),
             "prompt_version": PROMPT_VERSION,
         }
+        # Only the fine-tune adds a key, so fingerprints of the original checkpoint still hold.
+        flow = FLOW_CHECKPOINTS.get(spec.size)
+        if flow and flow.weights and all(hashes.get(k) == v for k, v in flow.weights.items()):
+            identity["weights"] = "flow"
         metadata = {
             **identity,
             "fingerprint": hashlib.sha256(canonical(identity).encode()).hexdigest(),

@@ -3,7 +3,15 @@ import json
 import sys
 from pathlib import Path
 
-from .config import DEFAULT_QUANT, DEFAULT_SIZE, MODELS, QUANTS, download_gguf, download_model
+from .config import (
+    DEFAULT_QUANT,
+    DEFAULT_SIZE,
+    MODELS,
+    QUANTS,
+    VARIANTS,
+    download_gguf,
+    download_model,
+)
 from .llama_release import ACCELERATORS
 from .loader import BACKENDS, DEVICES
 
@@ -47,6 +55,12 @@ def main():
     download.add_argument("--backend", choices=BACKENDS, default="llama")
     download.add_argument("--quant", choices=QUANTS, default=DEFAULT_QUANT, help="GGUF file")
     download.add_argument(
+        "--weights",
+        choices=VARIANTS,
+        help="flow = our fine-tune for typed decisions (default), "
+        "base = the original Spark-X2.5 GGUF files",
+    )
+    download.add_argument(
         "--runtime",
         choices=ACCELERATORS,
         default="auto",
@@ -69,6 +83,12 @@ def main():
         p.add_argument("--backend", choices=BACKENDS, default="llama")
         p.add_argument("--model", type=Path, help="GGUF file (MLX: checkpoint directory)")
         p.add_argument("--quant", choices=QUANTS, help=f"Pinned GGUF file; default {DEFAULT_QUANT}")
+        p.add_argument(
+            "--weights",
+            choices=VARIANTS,
+            help="Pinned weights: flow = our fine-tune for typed decisions (default), "
+            "base = the original Spark-X2.5 GGUF files",
+        )
         p.add_argument("--bits", type=int, choices=(4, 8), help="MLX backend only")
         p.add_argument(
             "--device",
@@ -108,7 +128,7 @@ def main():
     try:
         if args.command == "download":
             if args.backend == "mlx":
-                print(download_model(args.destination, args.size))
+                print(download_model(args.destination, args.size, args.weights))
                 return
             if args.only != "weights":
                 from .llama_release import install, translated
@@ -125,7 +145,11 @@ def main():
                     )
                 print(install(args.runtime, progress))
             if args.only != "runtime":
-                print(download_gguf(args.size, args.quant, args.destination, progress))
+                print(
+                    download_gguf(
+                        args.size, args.quant, args.destination, progress, variant=args.weights
+                    )
+                )
             return
         if args.command == "devices":
             from .loader import describe
@@ -160,6 +184,7 @@ def main():
             size=args.size,
             model=args.model,
             quant=args.quant,
+            weights=args.weights,
             bits=args.bits,
             device=args.device,
             ctx=args.ctx,

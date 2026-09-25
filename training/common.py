@@ -17,7 +17,12 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-MODEL_DIR = ROOT / "models" / "Spark-X2.5-4B"
+# RIZZO_TRAIN_SIZE=1.7b points every script at the small checkpoint (same architecture).
+MODEL_DIR = (
+    ROOT
+    / "models"
+    / {"4b": "Spark-X2.5-4B", "1.7b": "Spark-X2.5-1.7B"}[os.environ.get("RIZZO_TRAIN_SIZE", "4b")]
+)
 DATA_DIR = ROOT / ".research" / "train-data"
 
 

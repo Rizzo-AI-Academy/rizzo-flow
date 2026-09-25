@@ -76,6 +76,7 @@ class Rizzo:
             size=args.size,
             model=args.model,
             quant=args.quant,
+            weights=args.weights,
             bits=args.bits,
             device=args.device,
             batch_size=args.batch_size,
@@ -212,6 +213,7 @@ def main():
     parser.add_argument("--backend", choices=("llama", "mlx"), default="llama", help="Rizzo only")
     parser.add_argument("--size", default="4b", help="Rizzo checkpoint: 4b or 1.7b")
     parser.add_argument("--quant", help="Rizzo on llama.cpp: q8_0 (default), q4_k_m, bf16")
+    parser.add_argument("--weights", choices=("flow", "base"), help="pinned GGUF; default flow")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--model", help="Rizzo: GGUF file or MLX directory; SemIf: repository")
     parser.add_argument("--revision", default="851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a")

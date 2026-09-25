@@ -39,6 +39,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=BACKENDS, default="llama")
     parser.add_argument("--quant")
+    parser.add_argument("--weights", choices=("flow", "base"), help="pinned GGUF; default flow")
     parser.add_argument("--bits", type=int, choices=(4, 8))
     parser.add_argument("--device", default="auto")
     parser.add_argument("--repeats", type=int, default=5)
@@ -47,7 +48,9 @@ def main():
         page = stream.read()
     found = LINE.search(page)
     demo = json.loads(found.group(2))
-    backend = load_backend(args.backend, quant=args.quant, bits=args.bits, device=args.device)
+    backend = load_backend(
+        args.backend, quant=args.quant, weights=args.weights, bits=args.bits, device=args.device
+    )
     engine = Engine(backend)
     served = compat.model_name(backend.metadata)
     times = []

@@ -73,7 +73,10 @@ class SystemOneRequest(Wire):
 
 def model_name(metadata: dict) -> str:
     checkpoint = metadata.get("source", MODEL_ID).split("/")[-1].lower()  # spark-x2.5-4b
-    return f"rizzo-{checkpoint}-{metadata.get('precision', 'unknown')}"
+    precision = metadata.get("precision", "unknown")
+    if metadata.get("weights") == "flow":  # our fine-tune: rizzo-flow-4b-q8_0
+        return f"rizzo-flow-{checkpoint.rsplit('-', 1)[-1]}-{precision}"
+    return f"rizzo-{checkpoint}-{precision}"
 
 
 class UnknownModel(ValueError):

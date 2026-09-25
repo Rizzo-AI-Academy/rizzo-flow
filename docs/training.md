@@ -391,6 +391,14 @@ non usa. Il chat template (da cui il backend costruisce i prompt) è quello di
 `tokenizer_config.json`, che il convertitore preferirebbe. Le due versioni del template
 producono comunque lo stesso testo su tutti i 2.000 prompt di typed-decisions.
 
+**1.7B e pubblicazione per MLX.** `RIZZO_TRAIN_SIZE=1.7b` punta tutti gli script al checkpoint
+piccolo (`models/Spark-X2.5-1.7B`, a cui servono anche `configuration_spark.py`,
+`modeling_spark.py` e `merges.txt` della stessa revisione: identici a quelli del 4B). La cartella
+`hf/` dell'export è il checkpoint fuso che il backend MLX scarica dalla radice dei repo HF: prima
+di pubblicarla va rimesso il `tokenizer_config.json` originale. Rifatto il 25/09 su RTX 5060 Ti a
+partire dagli adapter pubblicati: i GGUF BF16 e Q8_0 ottenuti hanno lo stesso sha256 di quelli
+prodotti sulla RTX PRO 6000, quindi la fusione è deterministica e i safetensors sono i pesi esatti.
+
 Numeri di partenza da battere (modello non addestrato, 25/09, RTX 5060 Ti, llama.cpp CUDA):
 
 | | Accuracy ↑ | KL from gold ↓ | Brier ↓ | p50 per caso |

@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--size", default="4b")
     parser.add_argument("--model", help="GGUF file (llama) or checkpoint directory (mlx)")
     parser.add_argument("--quant", help="llama: q8_0 (default), q4_k_m, bf16")
+    parser.add_argument("--weights", choices=("flow", "base"), help="pinned GGUF; default flow")
     parser.add_argument("--bits", type=int, choices=[4, 8], help="mlx only")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--output", required=True)
@@ -52,6 +53,7 @@ def main():
         size=args.size,
         model=args.model,
         quant=args.quant,
+        weights=args.weights,
         bits=args.bits,
         device=args.device,
     )

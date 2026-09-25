@@ -122,6 +122,9 @@ class LlamaBackend:
             "llama_cpp_commit": llama_release.COMMIT,
             "prompt_version": PROMPT_VERSION,
         }
+        # Only the fine-tune adds a key, so fingerprints of the original files still hold.
+        if pin and pin.variant != "base":
+            identity["weights"] = pin.variant
         # A quantized KV cache moves the logits, so it is part of the identity. F16 is the
         # runtime's default and adds no key: fingerprints recorded before the option still hold.
         if kv_type not in (None, "f16"):

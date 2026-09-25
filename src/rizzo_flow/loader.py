@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from .config import DEFAULT_QUANT, DEFAULT_SIZE, GGUF, MODELS
+from .config import DEFAULT_SIZE, checkpoint_path, gguf_spec
 
 BACKENDS = ("llama", "mlx")
 # `auto`, `gpu` and `cpu` work everywhere. The other names ask for one GPU family: `mlx` and
@@ -17,6 +17,7 @@ def load_backend(
     size=DEFAULT_SIZE,
     model=None,
     quant=None,
+    weights=None,
     bits=None,
     device="auto",
     ctx=8192,
@@ -35,8 +36,15 @@ def load_backend(
             raise ValueError("--kv-type exists only in the llama backend")
         from .backend import SparkBackend
 
+        if model and weights:
+            raise ValueError(
+                "--weights picks a pinned checkpoint; with --model the files are yours"
+            )
         return SparkBackend.load(
-            model or MODELS[size].path, bits=bits, device=device, batch_size=batch_size
+            model or checkpoint_path(size, weights),
+            bits=bits,
+            device=device,
+            batch_size=batch_size,
         )
     if bits:
         raise ValueError(
@@ -45,6 +53,8 @@ def load_backend(
         )
     if device == "mlx":
         raise ValueError("--device mlx needs --backend mlx; with llama.cpp use --device metal")
+    if model and weights:
+        raise ValueError("--weights picks a pinned file; with --model the file is yours")
     if model and Path(model).is_dir():
         raise ValueError(
             f"{model} is a checkpoint directory (MLX); llama.cpp needs a .gguf file. "
@@ -53,7 +63,7 @@ def load_backend(
     from .backend_llama import LlamaBackend
 
     return LlamaBackend.load(
-        model or GGUF[(size, quant or DEFAULT_QUANT)].path,
+        model or gguf_spec(size, quant, weights).path,
         device=device,
         ctx=ctx,
         batch_size=batch_size,

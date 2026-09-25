@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from test_service import FakeBackend
 
 from rizzo_flow.api import create_app
-from rizzo_flow.compat import SystemOneRequest, confidence, to_native
+from rizzo_flow.compat import SystemOneRequest, confidence, model_name, to_native
 from rizzo_flow.engine import Engine
 
 
@@ -125,3 +125,11 @@ def test_twenty_six_answer_letters(body):
         assert http.post("/v1/decisions", json=native(26, False)).status_code == 200
         assert http.post("/v1/decisions", json=native(25, True)).status_code == 200
         assert http.post("/v1/decisions", json=native(26, True)).status_code == 422
+
+
+def test_fine_tuned_weights_get_their_own_model_name():
+    base = {"source": "XHToken/Spark-X2.5-4B", "precision": "q8_0"}
+    assert model_name(base) == "rizzo-spark-x2.5-4b-q8_0"
+    assert model_name({**base, "weights": "flow"}) == "rizzo-flow-4b-q8_0"
+    small = {"source": "XHToken/Spark-X2.5-1.7B", "precision": "bf16", "weights": "flow"}
+    assert model_name(small) == "rizzo-flow-1.7b-bf16"

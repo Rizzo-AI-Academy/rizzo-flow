@@ -3,9 +3,11 @@
 Decisioni tipizzate e stime numeriche locali con **XHToken/Spark-X2.5-4B**.
 Il modello valuta le opzioni; il software restituisce JSON verificabile senza generare token.
 
-Implementazione indipendente ispirata al pattern di Jev e SemIf. Usa i pesi originali di Spark:
-non è un modello addestrato da zero, non replica l'architettura proprietaria di Jev e non presume
-di avere probabilità calibrate o qualità superiore a SemIf.
+Implementazione indipendente ispirata al pattern di Jev e SemIf. Usa Spark con un nostro
+fine-tuning LoRA per le decisioni tipizzate (sezione [Fine-tuning](#fine-tuning); i pesi originali
+restano a un flag di distanza, `--weights base`): non è un modello addestrato da zero, non replica
+l'architettura proprietaria di Jev e non presume di avere probabilità calibrate o qualità superiore
+a SemIf.
 
 **Runtime: [llama.cpp](https://github.com/ggml-org/llama.cpp)** (dal 22 settembre 2026), quindi
 GPU Apple, NVIDIA, AMD e Intel oppure sola CPU, senza compilare nulla. MLX, il runtime originale
@@ -23,7 +25,7 @@ Gli stessi comandi su ogni sistema:
 uv sync --locked
 source .venv/bin/activate         # macOS / Linux
 .venv\Scripts\activate           # Windows
-rizzo download                    # runtime llama.cpp per questa macchina + Spark-X2.5-4B Q8_0 (~4.4 GB)
+rizzo download                    # runtime llama.cpp per questa macchina + Rizzo Flow 4B Q8_0 (~4.4 GB)
 rizzo devices                     # GPU viste dal runtime e quella scelta da `auto`
 rizzo decide examples/ticket.json
 rizzo decide examples/numeric.json
@@ -43,17 +45,22 @@ Mac M3 Pro/Metal, AMD Radeon 780M/Vulkan, Intel Iris Xe/Vulkan e una prova in mo
 portatile Intel; sono riferite nei link sopra ma non riprodotte dai manutentori. Linux, ROCm, SYCL
 e una macchina senza GPU dedicata restano da verificare.
 
-I pesi sono i GGUF pubblicati dagli autori del modello
+I pesi predefiniti (`--weights flow`) sono il nostro fine-tuning, fuso nei pesi e convertito in
+GGUF ([4B](https://huggingface.co/rizzoaiacademy/rizzo-flow),
+[1.7B](https://huggingface.co/rizzoaiacademy/rizzo-flow-1.7b)): `--quant q8_0` (default, 4.4 GB),
+`q4_k_m` (2.6 GB; sull'1.7B perde 5 punti) o `bf16` (8.2 GB). `--weights base` scarica invece i GGUF originali degli autori del modello
 ([4B](https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF),
-[1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B-GGUF)), salvati in `models/`:
-`--quant q8_0` (default, 4.4 GB), `q4_k_m` (2.6 GB), `bf16` (8.2 GB); `--size 1.7b` per il modello
-piccolo. La quantizzazione modifica le probabilità: confrontare i risultati sul proprio carico.
+[1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B-GGUF)). Tutto finisce in `models/`, fissato per commit e sha256; `--size 1.7b`
+per il modello piccolo. L'ID servito dice quali pesi rispondono: `rizzo-flow-4b-q8_0` o
+`rizzo-spark-x2.5-4b-q8_0`. La quantizzazione modifica le probabilità: confrontare i risultati sul proprio carico.
 I comandi vanno eseguiti dalla radice del progetto. `--model /percorso/file.gguf` carica un altro
 file (senza provenienza verificata: `gguf_source` resta `null` nei metadati).
 
 Runtime MLX (facoltativo): `uv sync --locked --extra mlx` (Apple Silicon; `--extra cuda` per
-NVIDIA, `--extra cpu` senza GPU), `rizzo download --backend mlx` (pesi originali, ~8 GB),
-`rizzo serve --backend mlx --bits 8`. BF16 è la sua precisione predefinita; `--bits 8` e `--bits 4`
+NVIDIA, `--extra cpu` senza GPU), `rizzo download --backend mlx` (fine-tuning in safetensors, ~8 GB),
+`rizzo serve --backend mlx --bits 8`. Anche MLX usa il fine-tuning, dal checkpoint safetensors
+BF16 pubblicato negli stessi repository (pesi identici bit per bit al GGUF BF16; `--weights base`
+per i pesi originali). BF16 è la sua precisione predefinita; `--bits 8` e `--bits 4`
 quantizzano i pesi in memoria. Tutti i risultati contrassegnati "MLX" sono stati misurati così.
 
 L'API mantiene un solo modello residente. Interfaccia interattiva: <http://127.0.0.1:8017/docs>.
@@ -240,6 +247,51 @@ Con llama.cpp la cache KV è prenotata all'avvio (`--ctx` + 2048 celle) e tiene 
 anche per i layer a finestra scorrevole: ~144 KiB per token nel 4B, circa 1.4 GiB con il default.
 Con MLX il limite di cache inattiva è 256 MiB: non limita memoria dei pesi o cache KV attive.
 
+## Fine-tuning
+
+Un LoRA (r 16, alpha 32, tutti i layer lineari di attenzione e MLP) addestrato con lo stesso
+forward pass dell'inferenza: nessun testo da generare, la loss è una cross-entropy morbida tra la
+distribuzione attesa e il softmax sulle lettere di risposta, con i prompt esatti di
+`spark-decisions-v3`. 28.321 domande da dataset pubblici (`tasksource/procedural-typed-decisions`,
+`ZefanCai/Open-Jev` senza `customer-control-v1` e `workflow-controls-v1`, 12 config di
+`Praveenrajus/jev-bench`), nessuna etichetta prodotta da Jev, esclusi gli stati che contengono testo
+dei nostri set di valutazione. Un'epoca, 41 minuti (4B) e 19 minuti (1.7B) su una RTX PRO 6000.
+Pipeline e scelte: [training.md](training.md).
+
+<a href="../assets/training_charts.png"><img src="../assets/training_charts.png" alt="Curve di training sul dev set: accuracy per fonte, accuracy complessiva e loss per il 4B (rosso) e l'1.7B (verde)" width="100%" /></a>
+
+*Curve sul dev set (600 domande dagli split `validation` delle tre fonti, mai viste in training,
+valutate ogni 200 step): rosso 4B, verde 1.7B. Sono numeri in distribuzione; la misura
+indipendente è typed-decisions, sotto.*
+
+<a href="../assets/training_charts.png"><img src="../assets/training_charts.png" alt="Curve di training sul dev (600 domande di validation mai viste in training, valutate ogni 200 step): accuratezza per sorgente (tasksource, Open-Jev, jev-bench), accuratezza complessiva e loss del 4B (rosso) e dell'1.7B (verde); l'accuratezza complessiva passa da 0.55 a circa 0.85 sul 4B e da 0.41 a circa 0.82 sull'1.7B" width="100%" /></a>
+
+*Curve del dev da Weights & Biases: rosso = 4B, verde = 1.7B (il punto blu è una prova di 10
+step). 600 domande degli split `validation` delle tre sorgenti, mai usate in training, valutate
+allo step 0 e ogni 200 step; accuratezza = argmax contro argmax della distribuzione attesa. Sono
+numeri nella stessa distribuzione del training: la misura indipendente è il benchmark qui sotto.*
+
+Test di [`LocalLLaMA/typed-decisions`](https://huggingface.co/datasets/LocalLLaMA/typed-decisions)
+(400 casi, 2.000 decisioni), base e fine-tuning sulla stessa macchina (llama.cpp CUDA, RTX 5060 Ti, Q8_0):
+
+| | Accuracy | KL dal gold | Brier | ECE | p50 per caso |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Spark-X2.5-4B base | 0.574 | 2.899 | 0.480 | 0.349 | 201 ms |
+| **Rizzo Flow 4B** | **0.648** | **0.452** | **0.205** | **0.112** | 195 ms |
+| Spark-X2.5-1.7B base | 0.530 | 3.031 | 0.496 | 0.348 | 117 ms |
+| Rizzo Flow 1.7B | 0.544 | 0.694 | 0.275 | 0.169 | 109 ms |
+| Rizzo Flow 4B Q4_K_M | 0.650 | 0.436 | 0.201 | 0.093 | 198 ms |
+| Rizzo Flow 1.7B Q4_K_M | 0.490 | 0.640 | 0.279 | 0.192 | 107 ms |
+| Jev 1.13.0 (dalla scheda del dataset, non rimisurato) | 0.727 | 1.442 | 0.148 | – | – |
+
+4B: +0.074 di accuracy, intervallo al 95% [+0.050, +0.101]; migliorano tutti e quattro i workflow.
+1.7B: migliorano le probabilità ma non l'accuracy (+0.014 [−0.014, +0.043]) e `security_incidents`
+scende da 0.612 a 0.514. Resta sotto Jev. Le fixture SemIf e lo smoke non sono ancora stati
+rimisurati sul fine-tuning: i numeri di [results/README.md](../results/README.md) sono dei pesi originali.
+Lo stesso fine-tuning gira anche con MLX (`--backend mlx`): pesi identici bit per bit al GGUF BF16,
+e su MLX-CUDA il 4B dà stessi prompt e stesse probabilità di llama.cpp BF16 entro 0.001 (MLX non è
+stato misurato sull'intero benchmark).
+
 ## Misurazioni e calibrazione
 
 ```bash
@@ -291,7 +343,10 @@ Minimo 10 righe per tipo, solo come guardia tecnica: non basta per garantire qua
 .venv/bin/rizzo evaluate held-out.jsonl --calibration calibration-fit.json --output results/held-out.json
 ```
 
-Il fingerprint lega l'artefatto a pesi, tokenizer, precisione, runtime e versione del prompt.
+Il fine-tuning migliora già la forma delle probabilità (ECE 0.349 → 0.112 sul 4B), ma non le
+calibra sul vostro dominio: la temperature scaling resta il passo da fare prima di usare soglie.
+Il fingerprint lega l'artefatto a pesi, tokenizer, precisione, runtime e versione del prompt:
+una calibrazione fatta sui pesi originali non vale sul fine-tuning.
 Il fitting riporta NLL sul campione di calibrazione e non si dichiara validato: i report di test
 includono accuracy, NLL, Brier, ECE, coverage, errori numerici sulle sole risposte disponibili
 e differenze tra esecuzione diretta e condivisa. Una temperatura unica per tipo non garantisce
@@ -300,6 +355,8 @@ trasferimento tra domini o rubriche. Valutare anche il costo degli errori e dell
 ## Provenienza
 
 - [Spark-X2.5-4B](https://huggingface.co/XHToken/Spark-X2.5-4B), revisione `0bcb35678590218655dff3765b9e61c83b35e9c4`.
+- Fine-tuning [4B](https://huggingface.co/rizzoaiacademy/rizzo-flow) (`55633c8c…`) e
+  [1.7B](https://huggingface.co/rizzoaiacademy/rizzo-flow-1.7b) (`532e1586…`), sha256 in `config.py`.
 - GGUF ufficiali [4B](https://huggingface.co/XHToken/Spark-X2.5-4B-GGUF) (`9826e0be…`) e
   [1.7B](https://huggingface.co/XHToken/Spark-X2.5-1.7B-GGUF) (`1f7fa33b…`), sha256 in `config.py`.
 - [llama.cpp](https://github.com/ggml-org/llama.cpp) release `b11081` (commit `161755f2…`), pacchetti
