@@ -215,9 +215,17 @@ typed-decisions test (`scripts/typed_decisions.py`, report in `results/local-typ
 ignorati da git), stessa macchina RTX 5060 Ti, Q8_0: 4B 0.574 → **0.648** (+0.074 [+0.050,
 +0.101]), KL 2.90 → 0.45, Brier 0.480 → 0.205, ECE 0.349 → 0.112; 1.7B 0.530 → 0.544 (rumore),
 KL 3.03 → 0.69, `security_incidents` 0.612 → 0.514. Q4_K_M: 4B 0.650 (pari a Q8_0, +0.002
-[−0.011, +0.015]), 1.7B 0.490 (−0.054 [−0.070, −0.037]). Jev dalla card: 0.727. **Non ancora
-rimisurati sul fine-tuning:** fixture SemIf, smoke, demo della landing (`DEMO` in
-`docs/index.html`, registrato sui pesi base): tutte le tabelle storiche sotto sono dei pesi base.
+[−0.011, +0.015]), 1.7B 0.490 (−0.054 [−0.070, −0.037]). Jev dalla card: 0.727.
+Fixture SemIf, 4B Q8_0 fine-tuned (`results/semif-compare/rizzo-flow-q8_0-v3-llama-cuda/`, SemIf
+**non** rieseguito: confronto con le sue predizioni pubblicate): authored144 **0.845** (base
+0.812, SemIf 0.819; vs SemIf +0.027 [−0.038, +0.099], pari), perturbations108 **0.946** (base
+0.848, SemIf 0.766; vs SemIf **+0.180 [+0.108, +0.267]**, prima superiorità dimostrata), held-out
+0.809 / 0.949, flip 1/1/1, `rule_application` perturbata 0.870 (NLL 0.33). **Peggiora
+sull'evidenza mancante**: 0.583 (base 0.750, SemIf 0.861), 5 scelte sicure sbagliate su 36.
+Latenza uguale ai pesi base (rilanciati in sequenza lo stesso giorno: 66 ms entrambi; quel giorno
+la macchina era più lenta dei 49 ms del 22/9). Landing, README, `results/README.md` aggiornati.
+**Non ancora rimisurati sul fine-tuning:** smoke, 1.7B su SemIf, demo della landing (`DEMO` in
+`docs/index.html`, registrato sui pesi base): le altre tabelle storiche sotto sono dei pesi base.
 
 ### Passaggio a llama.cpp (22 settembre 2026, su `main`)
 

@@ -263,9 +263,12 @@ Reading this honestly:
   come from a ~4B teacher model, not from humans.
 - **Not zero-shot any more, but no leak**: the fine-tune has seen the typed-decision format, not
   these workflows or states.
-- **Not yet re-measured on the fine-tune**: the SemIf fixtures and our smoke set (the tables in
-  [Results so far](#results-so-far) are the base weights). `--weights base` keeps the original
-  files one flag away.
+- **SemIf fixtures (4B Q8_0)**: `authored144` 0.845 (SemIf Q8 0.819, tied: +0.027 [−0.038,
+  +0.099]), `perturbations108` 0.946 (SemIf 0.766, +0.180 [+0.108, +0.267]), but worse than the
+  base weights on missing evidence (0.583 against 0.750). Details in
+  [Results so far](#results-so-far); the other tables there are the base weights.
+- **Not yet re-measured on the fine-tune**: our smoke set and the 1.7B on the SemIf fixtures.
+  `--weights base` keeps the original files one flag away.
 
 The same fine-tune runs on **MLX** too (`--backend mlx` downloads it as BF16 safetensors from the
 same repositories): its weights are bit-identical to the BF16 GGUF, and on MLX-CUDA the 4B gives
@@ -504,8 +507,9 @@ Interactive OpenAPI docs: <http://127.0.0.1:8017/docs>. Schemas: `request.schema
 
 The runtime changed from MLX to llama.cpp on 22 September 2026, so there are two generations of
 numbers: the current ones first, then a summary of what MLX measured. **Every number in this
-section comes from the original Spark-X2.5 weights** (`--weights base`); the fine-tuned default
-has so far been measured on typed-decisions only, in [Fine-tuning](#fine-tuning). Timings exclude model load
+section comes from the original Spark-X2.5 weights** (`--weights base`), except the first column
+of the table below (the fine-tuned default, 25 September 2026); typed-decisions is in
+[Fine-tuning](#fine-tuning). Timings exclude model load
 and warm-up and include request compilation plus synchronized GPU inference. All reports are
 committed, create-only, with logits, prompt hashes and weight hashes:
 [results/](results/README.md) (Italian).
@@ -517,29 +521,42 @@ with SemIf's own `benchmarks/evaluate.py` through `scripts/semif_compare.py`: sa
 metric, same timing scope; each system keeps its own prompt and model. GGUF files are the ones
 published by the model's authors.
 
-| Measure (Spark-X2.5-4B) | Q8_0 · CUDA (default) | BF16 · CUDA | Q4_K_M · CUDA | Q8_0 · Vulkan, same GPU | before: MLX-CUDA Q8 | SemIf Q8 (published) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `authored144`, mean-family balanced accuracy | 0.812 | 0.829 | 0.769 | 0.807 | 0.829 | 0.819 |
-| — held-out half only (72 rows) | 0.793 | 0.824 | 0.730 | 0.781 | 0.824 | 0.811 |
-| `perturbations108` | 0.848 | 0.859 | 0.835 | 0.854 | 0.865 | 0.766 |
-| — held-out half only (54 rows) | 0.861 | 0.875 | 0.801 | 0.861 | 0.875 | 0.824 |
-| Argmax flips: option reversal / wrapper / irrelevant context | 5 / 4 / 5 | 4 / 3 / 3 | 6 / 3 / 2 | 4 / 3 / 5 | 4 / 2 / 3 | 9 / 7 / 4 |
-| Missing evidence (36 rows): accuracy | 0.750 | 0.778 | 0.722 | 0.750 | 0.778 | 0.861 |
-| — confident (p ≥ 0.8) answers where `insufficient` was right | **6** | **6** | 5 | **6** | **6** | 1 |
-| Per-decision latency, short state (p50 / p95) | **49 / 52 ms** | 60 / 63 ms | 51 / 54 ms | 90 / 94 ms | 87 / 94 ms | not comparable |
-| `shape777` shared: 37 states (~2k tokens) × 21 criteria | **20.99 decisions/s** · 1.00 s per state | 17.75 · 1.19 s | 19.98 · 1.05 s | 14.84 · 1.35 s | 7.52 · 1.76 s | not comparable |
-| `shape777` fresh | 2.60 decisions/s | 1.97 | 2.39 (3 states) | 1.74 (3 states) | 1.65 | not comparable |
-| Argmax changes, shared vs fresh | 13 of 777 (max Δp 0.163) | 1 of 777 (0.064) | 2 of 63 (0.204) | 0 of 63 (0.028) | 2 of 777 (0.144) | — |
-| Peak GPU memory (drop in free memory since before the load) | 5.6 GiB | 9.3 GiB | 3.9 GiB | 6.0 GiB | 6.55 GiB (MLX allocator) | — |
+| Measure (Spark-X2.5-4B) | **fine-tuned** Q8_0 · CUDA (default) | base Q8_0 · CUDA | BF16 · CUDA | Q4_K_M · CUDA | Q8_0 · Vulkan, same GPU | before: MLX-CUDA Q8 | SemIf Q8 (published) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `authored144`, mean-family balanced accuracy | **0.845** | 0.812 | 0.829 | 0.769 | 0.807 | 0.829 | 0.819 |
+| — held-out half only (72 rows) | 0.809 | 0.793 | 0.824 | 0.730 | 0.781 | 0.824 | 0.811 |
+| `perturbations108` | **0.946** | 0.848 | 0.859 | 0.835 | 0.854 | 0.865 | 0.766 |
+| — held-out half only (54 rows) | **0.949** | 0.861 | 0.875 | 0.801 | 0.861 | 0.875 | 0.824 |
+| Argmax flips: option reversal / wrapper / irrelevant context | **1 / 1 / 1** | 5 / 4 / 5 | 4 / 3 / 3 | 6 / 3 / 2 | 4 / 3 / 5 | 4 / 2 / 3 | 9 / 7 / 4 |
+| Missing evidence (36 rows): accuracy | 0.583 | 0.750 | 0.778 | 0.722 | 0.750 | 0.778 | 0.861 |
+| — confident (p ≥ 0.8) answers where `insufficient` was right | **5** | **6** | **6** | 5 | **6** | **6** | 1 |
+| Per-decision latency, short state (p50 / p95) | same as base¹ | **49 / 52 ms** | 60 / 63 ms | 51 / 54 ms | 90 / 94 ms | 87 / 94 ms | not comparable |
+| `shape777` shared: 37 states (~2k tokens) × 21 criteria | same as base¹ | **20.99 decisions/s** · 1.00 s per state | 17.75 · 1.19 s | 19.98 · 1.05 s | 14.84 · 1.35 s | 7.52 · 1.76 s | not comparable |
+| `shape777` fresh | same as base¹ | 2.60 decisions/s | 1.97 | 2.39 (3 states) | 1.74 (3 states) | 1.65 | not comparable |
+| Argmax changes, shared vs fresh | 1 of 63 (0.027) | 13 of 777 (max Δp 0.163) | 1 of 777 (0.064) | 2 of 63 (0.204) | 0 of 63 (0.028) | 2 of 777 (0.144) | — |
+| Peak GPU memory (drop in free memory since before the load) | 5.6 GiB | 5.6 GiB | 9.3 GiB | 3.9 GiB | 6.0 GiB | 6.55 GiB (MLX allocator) | — |
+
+¹ Same architecture and quantization, so the same speed: the fine-tuned run measured 66 / 79 ms
+and 16.25 decisions/s shared, and the base weights run again right after it on the same machine
+gave 66 / 73 ms and 15.64 decisions/s (the machine was slower that day than on 22 September).
 
 Reading this honestly:
 
+- **The fine-tuned weights are clearly better under perturbation, tied on `authored144`.** Against
+  SemIf Q8: +0.027 [−0.038, +0.099] on `authored144` (tied), **+0.180 [+0.108, +0.267] on
+  `perturbations108`**; against our base weights +0.033 [−0.033, +0.105] and +0.098 [+0.001,
+  +0.204]. Most of the gain is `rule_application` under perturbation (0.611 → 0.870, NLL 1.69 →
+  0.33), and option-order flips drop to 1 of 36. SemIf's fixtures were excluded from the training
+  data (0 contaminated states, [docs/training.md](docs/training.md)). **It got worse on missing
+  evidence**: accuracy 0.583 against 0.750 for the base weights and 0.861 for SemIf, with 5
+  confident wrong answers of 36 (SemIf 1). Report:
+  [rizzo-flow-q8_0-v3-llama-cuda](results/semif-compare/rizzo-flow-q8_0-v3-llama-cuda/report.json).
 - **Changing the runtime did not change the quality beyond noise, and did not improve it.** Against
   the MLX run with the same prompt, llama.cpp Q8_0 picks a different option on 5 rows of 252:
   paired difference −0.017 on both sets, 95% interval [−0.043, 0.000]. At BF16 the two runtimes
   differ on 4 rows (+0.009 [0.000, +0.028]). Q8_0 here is llama.cpp's format, not MLX's 8-bit:
   they are different quantizations of the same weights. One row is 0.7–1.4 points.
-- **Against SemIf the picture is the same as before: tied.** Q8_0 −0.007 [−0.076, +0.065] on
+- **With the base weights, against SemIf the picture is the same as before: tied.** Q8_0 −0.007 [−0.076, +0.065] on
   `authored144`, BF16 +0.015 [−0.041, +0.079]. We claim no superiority. Half of these rows are
   the dev split prompt v3 was chosen on; the held-out half had been looked at once for the
   prompt and is reported again here only because the runtime changed.

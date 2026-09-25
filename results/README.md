@@ -104,32 +104,33 @@ sotto. Ogni cartella contiene `report.json`, le predizioni riga per riga e `anal
 (metà held-out e differenze appaiate, `scripts/semif_report.py`; sul vecchio run MLX lo script
 ridà esattamente i numeri già pubblicati: 0.824 / 0.875 e +0.010 [−0.051, +0.076]).
 
-Report: [Q8_0 CUDA](semif-compare/rizzo-q8_0-v3-llama-cuda/report.json) (tutto, 777 decisioni
+Report: [fine-tuned Q8_0 CUDA](semif-compare/rizzo-flow-q8_0-v3-llama-cuda/report.json) (direct su
+3 stati), [Q8_0 CUDA](semif-compare/rizzo-q8_0-v3-llama-cuda/report.json) (tutto, 777 decisioni
 anche direct), [BF16 CUDA](semif-compare/rizzo-bf16-v3-llama-cuda/report.json) (tutto),
 [Q4_K_M CUDA](semif-compare/rizzo-q4_k_m-v3-llama-cuda/report.json) (direct su 3 stati),
 [Q8_0 Vulkan](semif-compare/rizzo-q8_0-v3-llama-vulkan/report.json) (stessa scheda NVIDIA, build
 Vulkan; direct su 3 stati), [1.7B Q8_0 CUDA](semif-compare/rizzo-1.7b-q8_0-v3-llama-cuda/report.json)
 (tutto). Fixture proprie: [llama-q8_0-cuda-validation](llama-q8_0-cuda-validation/summary.json).
 
-| Misura (4B) | Q8_0 CUDA | BF16 CUDA | Q4_K_M CUDA | Q8_0 Vulkan | prima: MLX-CUDA Q8 | SemIf Q8 (pubbl.) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| authored144, balanced accuracy media per famiglia | 0.812 | 0.829 | 0.769 | 0.807 | 0.829 | 0.819 |
-| — solo metà held-out (72 righe) | 0.793 | 0.824 | 0.730 | 0.781 | 0.824 | 0.811 |
-| perturbations108 | 0.848 | 0.859 | 0.835 | 0.854 | 0.865 | 0.766 |
-| — solo metà held-out (54 righe) | 0.861 | 0.875 | 0.801 | 0.861 | 0.875 | 0.824 |
-| 36 originali | 0.852 | 0.870 | 0.800 | 0.852 | 0.870 | 0.723 |
-| option_reversal: accuratezza / flip | 0.889 / 5 | 0.889 / 4 | 0.907 / 6 | 0.889 / 4 | 0.889 / 4 | 0.813 / 9 |
-| criterion_wrapper: accuratezza / flip | 0.815 / 4 | 0.815 / 3 | 0.759 / 3 | 0.833 / 3 | 0.833 / 2 | 0.682 / 7 |
-| irrelevant_context: accuratezza / flip | 0.841 / 5 | 0.874 / 3 | 0.837 / 2 | 0.841 / 5 | 0.874 / 3 | 0.802 / 4 |
-| evidenza mancante (36): accuratezza | 0.750 | 0.778 | 0.722 | 0.750 | 0.778 | 0.861 |
-| — scelte ≠ `insufficient` con p ≥ 0.8 | **6** | **6** | 5 | **6** | **6** | 1 |
-| `rule_application` perturbata (NLL) | 0.611 (1.69) | 0.611 (1.69) | 0.611 (1.85) | 0.630 (1.68) | 0.630 (1.63) | — |
-| Latenza stato corto p50 / p95 | 49 / 52 ms | 60 / 63 ms | 51 / 54 ms | 90 / 94 ms | 87 / 94 ms | non confr. |
-| shape777 shared | **20.99 dec/s**, 1.00 s/stato, 37 s | 17.75, 1.19 s/stato, 44 s | 19.98, 1.05 s/stato | 14.84, 1.35 s/stato | 7.52, 1.76 s/stato, 103 s | non confr. |
-| shape777 direct | 2.60 dec/s, 8.1 s/stato, 298 s | 1.97, 10.7 s/stato, 394 s | 2.39 (3 stati) | 1.74 (3 stati) | 1.65, 12.7 s/stato, 472 s | non confr. |
-| shared / direct | 8.1× | 9.0× | 8.4× | 8.5× | 4.6× | — |
-| Cambi argmax shared/direct | 13 su 777 (max Δp 0.163) | 1 su 777 (0.064) | 2 su 63 (0.204) | 0 su 63 (0.028) | 2 su 777 (0.144) | — |
-| Picco memoria GPU | 5.6 GiB | 9.3 GiB | 3.9 GiB | 6.0 GiB | 6.55 GiB (allocatore MLX) | — |
+| Misura (4B) | **fine-tuned** Q8_0 CUDA | base Q8_0 CUDA | BF16 CUDA | Q4_K_M CUDA | Q8_0 Vulkan | prima: MLX-CUDA Q8 | SemIf Q8 (pubbl.) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| authored144, balanced accuracy media per famiglia | **0.845** | 0.812 | 0.829 | 0.769 | 0.807 | 0.829 | 0.819 |
+| — solo metà held-out (72 righe) | 0.809 | 0.793 | 0.824 | 0.730 | 0.781 | 0.824 | 0.811 |
+| perturbations108 | **0.946** | 0.848 | 0.859 | 0.835 | 0.854 | 0.865 | 0.766 |
+| — solo metà held-out (54 righe) | **0.949** | 0.861 | 0.875 | 0.801 | 0.861 | 0.875 | 0.824 |
+| 36 originali | 0.944 | 0.852 | 0.870 | 0.800 | 0.852 | 0.870 | 0.723 |
+| option_reversal: accuratezza / flip | 1.000 / 1 | 0.889 / 5 | 0.889 / 4 | 0.907 / 6 | 0.889 / 4 | 0.889 / 4 | 0.813 / 9 |
+| criterion_wrapper: accuratezza / flip | 0.926 / 1 | 0.815 / 4 | 0.815 / 3 | 0.759 / 3 | 0.833 / 3 | 0.833 / 2 | 0.682 / 7 |
+| irrelevant_context: accuratezza / flip | 0.911 / 1 | 0.841 / 5 | 0.874 / 3 | 0.837 / 2 | 0.841 / 5 | 0.874 / 3 | 0.802 / 4 |
+| evidenza mancante (36): accuratezza | 0.583 | 0.750 | 0.778 | 0.722 | 0.750 | 0.778 | 0.861 |
+| — scelte ≠ `insufficient` con p ≥ 0.8 | 5 | **6** | **6** | 5 | **6** | **6** | 1 |
+| `rule_application` perturbata (NLL) | **0.870 (0.33)** | 0.611 (1.69) | 0.611 (1.69) | 0.611 (1.85) | 0.630 (1.68) | 0.630 (1.63) | — |
+| Latenza stato corto p50 / p95 | 66 / 79 ms¹ | 49 / 52 ms | 60 / 63 ms | 51 / 54 ms | 90 / 94 ms | 87 / 94 ms | non confr. |
+| shape777 shared | 16.25, 1.29 s/stato, 48 s¹ | **20.99 dec/s**, 1.00 s/stato, 37 s | 17.75, 1.19 s/stato, 44 s | 19.98, 1.05 s/stato | 14.84, 1.35 s/stato | 7.52, 1.76 s/stato, 103 s | non confr. |
+| shape777 direct | 1.92, 10.9 s/stato (3 stati)¹ | 2.60 dec/s, 8.1 s/stato, 298 s | 1.97, 10.7 s/stato, 394 s | 2.39 (3 stati) | 1.74 (3 stati) | 1.65, 12.7 s/stato, 472 s | non confr. |
+| shared / direct | 8.5× | 8.1× | 9.0× | 8.4× | 8.5× | 4.6× | — |
+| Cambi argmax shared/direct | 1 su 63 (0.027) | 13 su 777 (max Δp 0.163) | 1 su 777 (0.064) | 2 su 63 (0.204) | 0 su 63 (0.028) | 2 su 777 (0.144) | — |
+| Picco memoria GPU | 5.6 GiB | 5.6 GiB | 9.3 GiB | 3.9 GiB | 6.0 GiB | 6.55 GiB (allocatore MLX) | — |
 
 Il picco di llama.cpp è il calo della memoria libera della GPU rispetto a prima del caricamento
 (`ggml_backend_dev_memory`): comprende pesi, cache KV prenotata (10.240 celle, ~1.4 GiB), buffer di
@@ -143,14 +144,27 @@ di argmax, max Δp 0.012. Server uvicorn reale: `/v1/systemone`, `/v1/decisions`
 sugli input invalidi, playground e Snake; tre raffiche di 6 richieste concorrenti con pause di 12 s
 (lo schema che faceva abortire MLX-CUDA prima del thread unico in `Engine`) tutte 200.
 
+¹ Stessa architettura e quantizzazione dei pesi base, quindi stessa velocità: rilanciati subito
+dopo sulla stessa macchina, i pesi base hanno dato 66 / 73 ms e 15.64 dec/s (quel giorno la
+macchina era più lenta che il 22 settembre).
+
 Come leggerli:
 
+- **Fine-tuning (25 settembre 2026,
+  [rizzo-flow-q8_0-v3-llama-cuda](semif-compare/rizzo-flow-q8_0-v3-llama-cuda/report.json)):
+  pari su authored144, nettamente meglio sulle perturbazioni.** Contro SemIf Q8 +0.027 [−0.038,
+  +0.099] su authored144 e **+0.180 [+0.108, +0.267]** su perturbations108; contro i pesi base
+  +0.033 [−0.033, +0.105] e +0.098 [+0.001, +0.204] (44 righe diverse su 252). Il guadagno viene
+  quasi tutto da `rule_application` perturbata (0.611 → 0.870); i flip scendono a 1/1/1. Le
+  fixture SemIf sono escluse dal training (0 state contaminati, `docs/training.md`). **Peggiora
+  con evidenza mancante**: 0.583 contro 0.750 dei pesi base e 0.861 di SemIf, 5 scelte sicure
+  sbagliate su 36 (SemIf 1).
 - **Cambiare runtime non ha cambiato la qualità oltre il rumore, e non l'ha migliorata.** Rispetto
   al run MLX con lo stesso prompt, llama.cpp Q8_0 sceglie un'opzione diversa in 5 righe su 252:
   differenza appaiata −0.017 su entrambi i set, intervallo 95% [−0.043, 0.000]. In BF16 i due
   runtime differiscono in 4 righe (+0.009 [0.000, +0.028]). Il Q8_0 di llama.cpp e il Q8 affine di
   MLX sono quantizzazioni diverse degli stessi pesi. Una riga vale 0.7–1.4 punti.
-- **Rispetto a SemIf resta un pareggio**: Q8_0 −0.007 [−0.076, +0.065] su authored144, BF16 +0.015
+- **Con i pesi base, rispetto a SemIf resta un pareggio**: Q8_0 −0.007 [−0.076, +0.065] su authored144, BF16 +0.015
   [−0.041, +0.079]. Nessuna superiorità dimostrata. La metà held-out era stata guardata una sola
   volta per la scelta del prompt; qui è riportata di nuovo solo perché è cambiato il runtime (non
   è stata usata per scegliere nulla: il passaggio a llama.cpp è stato deciso per la copertura
@@ -227,7 +241,7 @@ da SemIf la funzione ridà esattamente i loro 0.723 e 10/9/4 flip). Report:
 | criterion_wrapper: accuratezza / flip | 0.833 / 2 | 0.815 / 3 | 0.682 / 7 | 0.706 / 9 |
 | irrelevant_context: accuratezza / flip | 0.874 / 3 | 0.841 / 4 | 0.802 / 4 | 0.821 / 4 |
 | evidenza mancante (36): accuratezza | 0.778 | 0.750 | 0.861 | 0.861 |
-| — scelte ≠ `insufficient` con p ≥ 0.8 | **6** | **6** | 1 | 1 |
+| — scelte ≠ `insufficient` con p ≥ 0.8 | 5 | **6** | **6** | 1 | 1 |
 
 Tempi (non confrontabili con SemIf: hardware diverso; SemIf su RTX 3090, BF16: 2.33 fresh /
 20.03 parallel dec/s):

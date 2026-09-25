@@ -286,8 +286,11 @@ Test di [`LocalLLaMA/typed-decisions`](https://huggingface.co/datasets/LocalLLaM
 
 4B: +0.074 di accuracy, intervallo al 95% [+0.050, +0.101]; migliorano tutti e quattro i workflow.
 1.7B: migliorano le probabilità ma non l'accuracy (+0.014 [−0.014, +0.043]) e `security_incidents`
-scende da 0.612 a 0.514. Resta sotto Jev. Le fixture SemIf e lo smoke non sono ancora stati
-rimisurati sul fine-tuning: i numeri di [results/README.md](../results/README.md) sono dei pesi originali.
+scende da 0.612 a 0.514. Resta sotto Jev. Sulle fixture SemIf (4B Q8_0, escluse dal training): authored144
+0.845 (SemIf Q8 0.819, pari: +0.027 [−0.038, +0.099]), perturbations108 0.946 (SemIf 0.766,
++0.180 [+0.108, +0.267]); peggiora però con evidenza mancante (0.583 contro 0.750 dei pesi base e
+0.861 di SemIf, 5 scelte sicure sbagliate su 36). Lo smoke e l'1.7B sulle fixture SemIf non sono
+ancora stati rimisurati: gli altri numeri di [results/README.md](../results/README.md) sono dei pesi originali.
 Lo stesso fine-tuning gira anche con MLX (`--backend mlx`): pesi identici bit per bit al GGUF BF16,
 e su MLX-CUDA il 4B dà stessi prompt e stesse probabilità di llama.cpp BF16 entro 0.001 (MLX non è
 stato misurato sull'intero benchmark).

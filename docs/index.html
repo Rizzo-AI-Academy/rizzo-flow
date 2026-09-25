@@ -387,19 +387,20 @@
     <div class="cmp">
       <table>
         <tr><th></th><th class="hl">rizzo-flow</th><th>Jev (TypeSafe)</th><th>SemIf</th></tr>
-        <tr><td><span class="it">Dove gira</span><span class="en">Where it runs</span></td><td class="hl"><span class="it">In locale · Metal, CUDA, Vulkan (AMD, Intel), ROCm, SYCL, CPU*</span><span class="en">Local · Metal, CUDA, Vulkan (AMD, Intel), ROCm, SYCL, CPU*</span></td><td><span class="it">Servizio cloud</span><span class="en">Hosted service</span></td><td><span class="it">In locale · CUDA, MLX</span><span class="en">Local · CUDA, MLX</span></td></tr>
+        <tr><td><span class="it">Dove gira</span><span class="en">Where it runs</span></td><td class="hl"><span class="it">In locale · Metal, CUDA, Vulkan (AMD, Intel), ROCm, SYCL, CPU</span><span class="en">Local · Metal, CUDA, Vulkan (AMD, Intel), ROCm, SYCL, CPU</span></td><td><span class="it">Servizio cloud</span><span class="en">Hosted service</span></td><td><span class="it">In locale · CUDA, MLX</span><span class="en">Local · CUDA, MLX</span></td></tr>
         <tr><td><span class="it">Pesi open</span><span class="en">Open weights</span></td><td class="hl"><span class="yes">✓</span> Spark-X2.5</td><td><span class="no">✗</span></td><td><span class="yes">✓</span> Qwen3.5</td></tr>
         <tr><td><span class="it">API HTTP stile Jev</span><span class="en">Jev-style HTTP API</span></td><td class="hl"><span class="yes">✓</span></td><td><span class="it">l'originale</span><span class="en">the original</span></td><td><span class="no">✗</span> CLI</td></tr>
         <tr><td><span class="it">Primitiva numerica</span><span class="en">Numeric primitive</span></td><td class="hl"><span class="yes">✓</span></td><td><span class="no">✗</span></td><td><span class="no">✗</span></td></tr>
         <tr><td><span class="it">Opzioni per domanda</span><span class="en">Options per question</span></td><td class="hl">26</td><td>255</td><td>16</td></tr>
         <tr><td><span class="it">Probabilità calibrate</span><span class="en">Calibrated probabilities</span></td><td class="hl"><span class="it">le calibri tu</span><span class="en">you calibrate</span></td><td><span class="yes">✓</span> <span class="it">dichiarate</span><span class="en">claimed</span></td><td><span class="no">✗</span></td></tr>
         <tr><td><span class="it">Contesto in input</span><span class="en">Input context</span></td><td class="hl"><span class="it">1M token</span><span class="en">1M tokens</span></td><td>32k</td><td>262k</td></tr>
-        <tr><td><span class="it">Qualità su <code>authored144</code></span><span class="en">Quality on <code>authored144</code></span></td><td class="hl">0.812</td><td>—</td><td>0.819</td></tr>
+        <tr><td><span class="it">Qualità su <code>authored144</code></span><span class="en">Quality on <code>authored144</code></span></td><td class="hl">0.845</td><td>—</td><td>0.819</td></tr>
+        <tr><td><span class="it">Qualità su <code>perturbations108</code></span><span class="en">Quality on <code>perturbations108</code></span></td><td class="hl">0.946</td><td>—</td><td>0.766</td></tr>
       </table>
     </div>
     <p class="small" style="text-align:center;margin-top:14px">
-      <span class="it">Progetto indipendente, non affiliato a TypeSafe. Qualità: balanced accuracy a 8 bit, fixture e metrica di SemIf; la differenza è dentro il rumore (−0,007, intervallo 95% [−0,076, +0,065]). *Verificato dal progetto su Windows + NVIDIA, build CUDA e Vulkan; sono stati segnalati run su Mac M3 Pro/Metal e GPU AMD/Intel/Vulkan. Contesto: massimo del modello; di default 8.192 token (<code>--ctx</code>). <a href="https://github.com/Rizzo-AI-Academy/rizzo-flow#which-hardware-and-what-we-have-actually-run">Risultati hardware e limiti</a>.</span>
-      <span class="en">Independent project, not affiliated with TypeSafe. Quality: balanced accuracy at 8 bit, SemIf's fixtures and metric; the difference is within noise (−0.007, 95% interval [−0.076, +0.065]). *Verified by the project on Windows + NVIDIA, CUDA and Vulkan builds; community reports describe runs on Mac M3 Pro/Metal and AMD/Intel GPUs with Vulkan. Context: model maximum; 8,192 tokens by default (<code>--ctx</code>). <a href="https://github.com/Rizzo-AI-Academy/rizzo-flow#which-hardware-and-what-we-have-actually-run">Hardware results and caveats</a>.</span>
+      <span class="it">Progetto indipendente, non affiliato a TypeSafe.</span>
+      <span class="en">Independent project, not affiliated with TypeSafe.</span>
     </p>
   </div>
 </section>
