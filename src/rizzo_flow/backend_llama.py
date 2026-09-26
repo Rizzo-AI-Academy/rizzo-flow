@@ -81,17 +81,41 @@ class LlamaBackend:
         pin = next((spec for spec in GGUF.values() if spec.sha256 == sha256), None)
         # The longest question is `ctx` tokens; a microbatch adds at most N_BATCH suffix tokens
         # on top of the prefix they share, so this many cells always suffice.
-        session = Session.load(
-            path,
-            directory=runtime_dir or llama_release.locate(device),
-            device=device,
-            n_ctx=ctx + N_BATCH,
-            n_batch=N_BATCH,
-            n_ubatch=prefill_chunk,
-            n_seq_max=batch_size + 1,
-            threads=threads,
-            kv_type=kv_type,
-        )
+        runtime_path = runtime_dir or llama_release.locate(device)
+        try:
+            session = Session.load(
+                path,
+                directory=runtime_path,
+                device=device,
+                n_ctx=ctx + N_BATCH,
+                n_batch=N_BATCH,
+                n_ubatch=prefill_chunk,
+                n_seq_max=batch_size + 1,
+                threads=threads,
+                kv_type=kv_type,
+            )
+        except (OSError, ValueError) as err:
+            if device == "auto" and not runtime_dir:
+                try:
+                    cpu_path = llama_release.locate("cpu")
+                    if cpu_path != runtime_path:
+                        session = Session.load(
+                            path,
+                            directory=cpu_path,
+                            device="cpu",
+                            n_ctx=ctx + N_BATCH,
+                            n_batch=N_BATCH,
+                            n_ubatch=prefill_chunk,
+                            n_seq_max=batch_size + 1,
+                            threads=threads,
+                            kv_type=kv_type,
+                        )
+                    else:
+                        raise
+                except Exception:
+                    raise err
+            else:
+                raise
         try:
             architecture = session.meta("general.architecture")
             if architecture != ARCHITECTURE:

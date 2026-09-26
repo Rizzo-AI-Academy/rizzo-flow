@@ -119,6 +119,7 @@ LOG_CALLBACK = ctypes.CFUNCTYPE(None, c_int, c_char_p, c_void_p)
 
 # name -> (result, arguments). Looked up in libllama first, then in the ggml libraries.
 SIGNATURES = {
+    "ggml_log_set": (None, [LOG_CALLBACK, c_void_p]),
     "llama_log_set": (None, [LOG_CALLBACK, c_void_p]),
     "llama_backend_init": (None, []),
     "llama_model_default_params": (ModelParams, []),
@@ -159,6 +160,55 @@ SIGNATURES = {
     "ggml_backend_dev_backend_reg": (c_void_p, [c_void_p]),
     "ggml_backend_reg_name": (c_char_p, [c_void_p]),
 }
+
+
+def _fix_msvc_mutexes(handle: int) -> None:
+    """MSVC C++ runtime binaries in llama.cpp prebuilt Windows releases can leave static _Mtx_t
+    mutexes uninitialized when loaded via ctypes. Initializing them prevents access violations in
+    _Mtx_lock / ggml_critical_section_start."""
+    if sys.platform != "win32":
+        return
+    try:
+        msvcp = ctypes.CDLL("MSVCP140.dll")
+        mtx_init = getattr(msvcp, "_Mtx_init_in_situ", None) or getattr(msvcp, "_Mtx_init", None)
+        if not mtx_init:
+            return
+        mtx_init.argtypes = [c_void_p, c_int]
+        mtx_init.restype = c_int
+
+        class _MBI(ctypes.Structure):
+            _fields_ = [
+                ("BaseAddress", c_void_p),
+                ("AllocationBase", c_void_p),
+                ("AllocationProtect", c_uint32),
+                ("PartitionId", ctypes.c_uint16),
+                ("RegionSize", c_size_t),
+                ("State", c_uint32),
+                ("Protect", c_uint32),
+                ("Type", c_uint32),
+            ]
+
+        vquery = ctypes.windll.kernel32.VirtualQuery
+        vquery.argtypes = [c_void_p, ctypes.POINTER(_MBI), c_size_t]
+        vquery.restype = c_size_t
+
+        mbi = _MBI()
+        curr = handle
+        while vquery(curr, ctypes.byref(mbi), ctypes.sizeof(mbi)):
+            if mbi.AllocationBase != handle:
+                break
+            if mbi.State == 0x1000 and (mbi.Protect & 0x04):  # MEM_COMMIT & PAGE_READWRITE
+                addr = mbi.BaseAddress
+                size = mbi.RegionSize
+                for off in range(0, size - 48, 8):
+                    v1 = ctypes.c_uint64.from_address(addr + off).value
+                    v2 = ctypes.c_uint64.from_address(addr + off + 8).value
+                    v3 = ctypes.c_uint64.from_address(addr + off + 16).value
+                    if v1 == 2 and v2 == 0 and v3 == 0:
+                        mtx_init(addr + off, 0)
+            curr += mbi.RegionSize
+    except Exception:
+        pass
 
 
 @dataclass(frozen=True)
@@ -221,7 +271,17 @@ class Library:
                 sys.stderr.write(text.decode("utf-8", errors="replace"))
 
         self._log = LOG_CALLBACK(log)  # referenced for the life of the library
+        ggml_log = getattr(self, "ggml_log_set", None)
+        if ggml_log is not None:
+            ggml_log(self._log, None)
         self.llama_log_set(self._log, None)
+        if sys.platform == "win32":
+            for dll_file in sorted(self.directory.glob("ggml-*.dll")):
+                try:
+                    h = ctypes.CDLL(str(dll_file), mode=ctypes.RTLD_GLOBAL)
+                    _fix_msvc_mutexes(h._handle)
+                except Exception:
+                    pass
         # Release builds ship every compute backend as a plug-in next to libllama.
         self.ggml_backend_load_all_from_path(str(self.directory).encode())
         self.llama_backend_init()
@@ -251,7 +311,9 @@ class Library:
         for stem in ("ggml-base", "ggml", "llama"):
             path = _shared(self.directory, stem)
             if path is not None:
-                handles.append(ctypes.CDLL(str(path), mode=ctypes.RTLD_GLOBAL))
+                h = ctypes.CDLL(str(path), mode=ctypes.RTLD_GLOBAL)
+                _fix_msvc_mutexes(h._handle)
+                handles.append(h)
         return handles[::-1]
 
     def devices(self) -> list[Device]:
