@@ -1,0 +1,29 @@
+rizzo-flow-rs
+Copyright 2026 Alfonso Riva and contributors
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product is an independent Rust port ("fork") of Rizzo Flow and includes material
+derived from it:
+
+  Rizzo Flow — https://github.com/Rizzo-AI-Academy/rizzo-flow
+  Copyright Rizzo AI Academy
+  Licensed under the Apache License, Version 2.0
+
+  Ported / redistributed from Rizzo Flow:
+  - the request and response JSON Schemas in schema/ (redistributed unmodified, so that
+    clients see exactly the documented wire contract);
+  - the behaviour of the decision, prompt, compat, calibration and evaluation modules,
+    re-implemented in Rust (src/decisions.rs, src/prompts.rs, src/compat.rs,
+    src/calibration.rs, src/evaluate.rs);
+  - the ported test suite, derived from the original tests.
+
+  The Rust port was written from the original sources; it is not a copy of the Python
+  code, but it deliberately reproduces its contract and its behaviour.
+
+The wire format implemented here matches the public "System One" interface described by
+TypeSafe and named Jev in Rizzo Flow. It is used as an interface reference only: no
+TypeSafe code or data is included in this repository.
+
+Model weights are NOT distributed with this repository. The pinned GGUF used for the
+measured results is downloaded separately from its publisher and remains under its own
+license (the checkpoint used in the measurements declares Apache-2.0).

@@ -1,0 +1,642 @@
+{
+  "$defs": {
+    "BooleanAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "insufficient_evidence",
+            "out_of_range",
+            "uncertain"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "option_logits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Option Logits",
+          "type": "object"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Legend",
+          "type": "object"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/Uncertainty"
+        },
+        "probability_status": {
+          "enum": [
+            "uncalibrated_conditional_option_scores",
+            "temperature_scaled_requires_held_out_validation"
+          ],
+          "title": "Probability Status",
+          "type": "string"
+        },
+        "temperature": {
+          "exclusiveMinimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "prompt_sha256": {
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "input_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "type": {
+          "const": "boolean",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "probability_true_given_available": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Probability True Given Available"
+        }
+      },
+      "required": [
+        "status",
+        "probabilities",
+        "option_logits",
+        "legend",
+        "uncertainty",
+        "probability_status",
+        "temperature",
+        "prompt_sha256",
+        "input_tokens",
+        "type",
+        "value",
+        "probability_true_given_available"
+      ],
+      "title": "BooleanAnswer",
+      "type": "object"
+    },
+    "ChoiceAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "insufficient_evidence",
+            "out_of_range",
+            "uncertain"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "option_logits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Option Logits",
+          "type": "object"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Legend",
+          "type": "object"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/Uncertainty"
+        },
+        "probability_status": {
+          "enum": [
+            "uncalibrated_conditional_option_scores",
+            "temperature_scaled_requires_held_out_validation"
+          ],
+          "title": "Probability Status",
+          "type": "string"
+        },
+        "temperature": {
+          "exclusiveMinimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "prompt_sha256": {
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "input_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "choice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Choice"
+        }
+      },
+      "required": [
+        "status",
+        "probabilities",
+        "option_logits",
+        "legend",
+        "uncertainty",
+        "probability_status",
+        "temperature",
+        "prompt_sha256",
+        "input_tokens",
+        "type",
+        "choice"
+      ],
+      "title": "ChoiceAnswer",
+      "type": "object"
+    },
+    "NumericAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "insufficient_evidence",
+            "out_of_range",
+            "uncertain"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "option_logits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Option Logits",
+          "type": "object"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Legend",
+          "type": "object"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/Uncertainty"
+        },
+        "probability_status": {
+          "enum": [
+            "uncalibrated_conditional_option_scores",
+            "temperature_scaled_requires_held_out_validation"
+          ],
+          "title": "Probability Status",
+          "type": "string"
+        },
+        "temperature": {
+          "exclusiveMinimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "prompt_sha256": {
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "input_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "type": {
+          "const": "numeric",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "statistics_given_available": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Statistics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "support": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Support",
+          "type": "array"
+        },
+        "range_probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "below",
+              "above"
+            ]
+          },
+          "title": "Range Probabilities",
+          "type": "object"
+        }
+      },
+      "required": [
+        "status",
+        "probabilities",
+        "option_logits",
+        "legend",
+        "uncertainty",
+        "probability_status",
+        "temperature",
+        "prompt_sha256",
+        "input_tokens",
+        "type",
+        "value",
+        "unit",
+        "statistics_given_available",
+        "values",
+        "support",
+        "range_probabilities"
+      ],
+      "title": "NumericAnswer",
+      "type": "object"
+    },
+    "ScoreAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "insufficient_evidence",
+            "out_of_range",
+            "uncertain"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "option_logits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Option Logits",
+          "type": "object"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Legend",
+          "type": "object"
+        },
+        "uncertainty": {
+          "$ref": "#/$defs/Uncertainty"
+        },
+        "probability_status": {
+          "enum": [
+            "uncalibrated_conditional_option_scores",
+            "temperature_scaled_requires_held_out_validation"
+          ],
+          "title": "Probability Status",
+          "type": "string"
+        },
+        "temperature": {
+          "exclusiveMinimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "prompt_sha256": {
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "input_tokens": {
+          "exclusiveMinimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "type": {
+          "const": "score",
+          "title": "Type",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Score"
+        },
+        "normalized_score": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Normalized Score"
+        },
+        "statistics_given_available": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Statistics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Values",
+          "type": "object"
+        },
+        "support": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Support",
+          "type": "array"
+        }
+      },
+      "required": [
+        "status",
+        "probabilities",
+        "option_logits",
+        "legend",
+        "uncertainty",
+        "probability_status",
+        "temperature",
+        "prompt_sha256",
+        "input_tokens",
+        "type",
+        "score",
+        "normalized_score",
+        "statistics_given_available",
+        "values",
+        "support"
+      ],
+      "title": "ScoreAnswer",
+      "type": "object"
+    },
+    "Statistics": {
+      "additionalProperties": false,
+      "properties": {
+        "mean": {
+          "title": "Mean",
+          "type": "number"
+        },
+        "stddev": {
+          "minimum": 0,
+          "title": "Stddev",
+          "type": "number"
+        },
+        "median": {
+          "title": "Median",
+          "type": "number"
+        },
+        "anchor_quantiles": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "enum": [
+              "p10",
+              "p90"
+            ]
+          },
+          "title": "Anchor Quantiles",
+          "type": "object"
+        }
+      },
+      "required": [
+        "mean",
+        "stddev",
+        "median",
+        "anchor_quantiles"
+      ],
+      "title": "Statistics",
+      "type": "object"
+    },
+    "Uncertainty": {
+      "additionalProperties": false,
+      "properties": {
+        "top_probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Top Probability",
+          "type": "number"
+        },
+        "entropy_nats": {
+          "minimum": 0,
+          "title": "Entropy Nats",
+          "type": "number"
+        },
+        "concentration": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Concentration",
+          "type": "number"
+        },
+        "unavailable_probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Unavailable Probability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "top_probability",
+        "entropy_nats",
+        "concentration",
+        "unavailable_probability"
+      ],
+      "title": "Uncertainty",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "model": {
+      "additionalProperties": true,
+      "title": "Model",
+      "type": "object"
+    },
+    "mode": {
+      "enum": [
+        "shared",
+        "direct"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "answers": {
+      "additionalProperties": {
+        "discriminator": {
+          "mapping": {
+            "boolean": "#/$defs/BooleanAnswer",
+            "choice": "#/$defs/ChoiceAnswer",
+            "numeric": "#/$defs/NumericAnswer",
+            "score": "#/$defs/ScoreAnswer"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/BooleanAnswer"
+          },
+          {
+            "$ref": "#/$defs/ChoiceAnswer"
+          },
+          {
+            "$ref": "#/$defs/ScoreAnswer"
+          },
+          {
+            "$ref": "#/$defs/NumericAnswer"
+          }
+        ]
+      },
+      "title": "Answers",
+      "type": "object"
+    },
+    "calibration": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Calibration"
+    },
+    "timing": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      },
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "required": [
+    "model",
+    "mode",
+    "answers",
+    "calibration",
+    "timing"
+  ],
+  "title": "Response",
+  "type": "object"
+}

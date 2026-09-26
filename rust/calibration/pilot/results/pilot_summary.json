@@ -1,0 +1,26 @@
+{
+  "fingerprint": "e240e9f020916baab8b9965ef17d74cbd0c2e981bd010cd9aa089e779ff5eb37",
+  "pilot_rows": 24,
+  "accuracy_uncalibrated": "24/24",
+  "accuracy_calibrated": "24/24",
+  "temperatures": {
+    "boolean": 0.05000000000000001,
+    "choice": 0.05000000000000001
+  },
+  "fit_metrics": {
+    "boolean": {
+      "rows": 12,
+      "fit_nll_before": 0.11406605045042717,
+      "fit_nll_after": 9.394322357062872e-10
+    },
+    "choice": {
+      "rows": 12,
+      "fit_nll_before": 0.08173163759555457,
+      "fit_nll_after": 3.979039320256561e-13
+    }
+  },
+  "probabilities_moved": "24/24",
+  "max_probability_shift": 0.3309207098644771,
+  "calibration_block_present": true,
+  "wrong_fingerprint_refused": true
+}

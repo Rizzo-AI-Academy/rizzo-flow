@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "fingerprint": "e240e9f020916baab8b9965ef17d74cbd0c2e981bd010cd9aa089e779ff5eb37",
+  "dataset_sha256": "24872dfe9e3e45169fd510e76731814e4f39c6312a14fa0cabf20188b9234e3a",
+  "temperatures": {
+    "boolean": 0.05000000000000001,
+    "choice": 0.05000000000000001
+  },
+  "fit_metrics": {
+    "boolean": {
+      "rows": 12,
+      "fit_nll_before": 0.11406605045042717,
+      "fit_nll_after": 9.394322357062872e-10
+    },
+    "choice": {
+      "rows": 12,
+      "fit_nll_before": 0.08173163759555457,
+      "fit_nll_after": 3.979039320256561e-13
+    }
+  },
+  "status": "fitted_requires_held_out_validation"
+}

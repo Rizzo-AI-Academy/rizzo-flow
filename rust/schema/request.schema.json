@@ -1,0 +1,298 @@
+{
+  "$defs": {
+    "Anchor": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "maximum": 1e+100,
+          "minimum": -1e+100,
+          "title": "Value",
+          "type": "number"
+        },
+        "description": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "description"
+      ],
+      "title": "Anchor",
+      "type": "object"
+    },
+    "BooleanQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "instructions": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Instructions",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "type": {
+          "const": "boolean",
+          "title": "Type",
+          "type": "string"
+        },
+        "true_description": {
+          "default": "Yes. The evidence supports an affirmative answer to the question.",
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "True Description",
+          "type": "string"
+        },
+        "false_description": {
+          "default": "No. The evidence supports a negative answer to the question.",
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "False Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instructions",
+        "type"
+      ],
+      "title": "BooleanQuestion",
+      "type": "object"
+    },
+    "ChoiceQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "instructions": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Instructions",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "maxItems": 26,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "instructions",
+        "type",
+        "options"
+      ],
+      "title": "ChoiceQuestion",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "NumericQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "instructions": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Instructions",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "type": {
+          "const": "numeric",
+          "title": "Type",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "anchors": {
+          "items": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "maxItems": 26,
+          "minItems": 2,
+          "title": "Anchors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "instructions",
+        "type",
+        "unit",
+        "anchors"
+      ],
+      "title": "NumericQuestion",
+      "type": "object"
+    },
+    "Option": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "description"
+      ],
+      "title": "Option",
+      "type": "object"
+    },
+    "Policy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_abstain": {
+          "default": true,
+          "title": "Allow Abstain",
+          "type": "boolean"
+        },
+        "max_unavailable_probability": {
+          "default": 0.5,
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Max Unavailable Probability",
+          "type": "number"
+        },
+        "min_top_probability": {
+          "default": 0,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Min Top Probability",
+          "type": "number"
+        }
+      },
+      "title": "Policy",
+      "type": "object"
+    },
+    "ScoreQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "instructions": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Instructions",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "type": {
+          "const": "score",
+          "title": "Type",
+          "type": "string"
+        },
+        "levels": {
+          "items": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 26,
+          "minItems": 2,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "instructions",
+        "type",
+        "levels"
+      ],
+      "title": "ScoreQuestion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "array"
+        }
+      ],
+      "title": "State"
+    },
+    "questions": {
+      "additionalProperties": {
+        "discriminator": {
+          "mapping": {
+            "boolean": "#/$defs/BooleanQuestion",
+            "choice": "#/$defs/ChoiceQuestion",
+            "numeric": "#/$defs/NumericQuestion",
+            "score": "#/$defs/ScoreQuestion"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/BooleanQuestion"
+          },
+          {
+            "$ref": "#/$defs/ChoiceQuestion"
+          },
+          {
+            "$ref": "#/$defs/ScoreQuestion"
+          },
+          {
+            "$ref": "#/$defs/NumericQuestion"
+          }
+        ]
+      },
+      "maxProperties": 64,
+      "minProperties": 1,
+      "title": "Questions",
+      "type": "object"
+    },
+    "mode": {
+      "default": "shared",
+      "enum": [
+        "shared",
+        "direct"
+      ],
+      "title": "Mode",
+      "type": "string"
+    }
+  },
+  "required": [
+    "state",
+    "questions"
+  ],
+  "title": "Request",
+  "type": "object"
+}

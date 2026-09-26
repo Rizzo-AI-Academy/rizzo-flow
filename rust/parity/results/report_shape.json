@@ -1,0 +1,955 @@
+{
+  "mode": "shape-only",
+  "numeric_tolerance": 1e-09,
+  "cases": 5,
+  "cases_matched": 2,
+  "cases_with_differences": [
+    "answers",
+    "model",
+    "timing"
+  ],
+  "numeric_fields_compared": 100,
+  "scalar_fields_compared": 64,
+  "max_numeric_delta": 1427.0,
+  "blocking_differences": 0,
+  "documented_differences": 19,
+  "informational_differences": 100,
+  "differences": [
+    {
+      "path": "answers.s5_supportata.input_tokens",
+      "kind": "numeric",
+      "python": 391,
+      "rust": 358,
+      "delta": 33.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -7.4375,
+      "rust": 25.86478042602539,
+      "delta": 33.30228042602539,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.option_logits.false",
+      "kind": "numeric",
+      "python": -0.77734375,
+      "rust": 28.22570037841797,
+      "delta": 29.00304412841797,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.option_logits.true",
+      "kind": "numeric",
+      "python": -5.46875,
+      "rust": 22.59787368774414,
+      "delta": 28.06662368774414,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.0012676928299405826,
+      "rust": 0.08591933874991084,
+      "delta": 0.08465164591997025,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.probabilities.false",
+      "kind": "numeric",
+      "python": 0.9896534476701491,
+      "rust": 0.9108050575227093,
+      "delta": 0.07884839014743972,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.probabilities.true",
+      "kind": "numeric",
+      "python": 0.009078859499910361,
+      "rust": 0.0032756037273797274,
+      "delta": 0.005803255772530633,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.probability_true_given_available",
+      "kind": "numeric",
+      "python": 0.009090383313658497,
+      "rust": 0.0035834952715223614,
+      "delta": 0.005506888042136136,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.prompt_sha256",
+      "kind": "value",
+      "python": "bda753104f80823080d219f886c9ed569a45582011c3d911445370b434f85d0f",
+      "rust": "7d4b9e63fbe610399f9852966bd7e5d8fe139cacf71267ef78043a85d8a10ad6",
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.9440784513757968,
+      "rust": 0.7135389741635656,
+      "delta": 0.23053947721223123,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.06143610051990078,
+      "rust": 0.31470960320837976,
+      "delta": 0.253273502688479,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.9896534476701491,
+      "rust": 0.9108050575227093,
+      "delta": 0.07884839014743972,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s5_supportata.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.0012676928299405826,
+      "rust": 0.08591933874991084,
+      "delta": 0.08465164591997025,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.input_tokens",
+      "kind": "numeric",
+      "python": 391,
+      "rust": 360,
+      "delta": 31.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -9.125,
+      "rust": 23.256986618041992,
+      "delta": 32.38198661804199,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.option_logits.false",
+      "kind": "numeric",
+      "python": -9.625,
+      "rust": 24.121719360351562,
+      "delta": 33.74671936035156,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.option_logits.true",
+      "kind": "numeric",
+      "python": -0.328125,
+      "rust": 28.7114315032959,
+      "delta": 29.0395565032959,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.0001511681316820126,
+      "rust": 0.00421639512251983,
+      "delta": 0.004065226990837817,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.probabilities.false",
+      "kind": "numeric",
+      "python": 9.168810663661734e-05,
+      "rust": 0.01001128812555779,
+      "delta": 0.009919600018921173,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.probabilities.true",
+      "kind": "numeric",
+      "python": 0.9997571437616815,
+      "rust": 0.9857723167519223,
+      "delta": 0.013984827009759115,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.probability_true_given_available",
+      "kind": "numeric",
+      "python": 0.999908298030948,
+      "rust": 0.9899463215938472,
+      "delta": 0.009961976437100839,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.prompt_sha256",
+      "kind": "value",
+      "python": "76261a41f41dade47277ebfb25c9eb13f76e3513be516079c5395b3cae09fcdb",
+      "rust": "f4018e5c70f99e946a83905a14b80277f2d799e464da0b0286b607a634a61b3d",
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.9977925736108526,
+      "rust": 0.9241981056798402,
+      "delta": 0.07359446793101243,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.0024251057574476514,
+      "rust": 0.08327689260444898,
+      "delta": 0.08085178684700133,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.9997571437616815,
+      "rust": 0.9857723167519223,
+      "delta": 0.013984827009759115,
+      "case": "answers"
+    },
+    {
+      "path": "answers.s6_supportata.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.0001511681316820126,
+      "rust": 0.00421639512251983,
+      "delta": 0.004065226990837817,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.input_tokens",
+      "kind": "numeric",
+      "python": 408,
+      "rust": 370,
+      "delta": 38.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.option_logits.APERTO",
+      "kind": "numeric",
+      "python": -14.9375,
+      "rust": 19.81328010559082,
+      "delta": 34.75078010559082,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.option_logits.DERIVAZIONE",
+      "kind": "numeric",
+      "python": -12.25,
+      "rust": 21.263046264648438,
+      "delta": 33.51304626464844,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.option_logits.FATTO",
+      "kind": "numeric",
+      "python": -11.6875,
+      "rust": 20.678699493408203,
+      "delta": 32.3661994934082,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.option_logits.NORMA",
+      "kind": "numeric",
+      "python": -0.66796875,
+      "rust": 28.509349822998047,
+      "delta": 29.177318572998047,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -8.4375,
+      "rust": 21.44934844970703,
+      "delta": 29.88684844970703,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.probabilities.APERTO",
+      "kind": "numeric",
+      "python": 6.347847279876426e-07,
+      "rust": 0.00016688532983674784,
+      "delta": 0.0001662505451087602,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.probabilities.DERIVAZIONE",
+      "kind": "numeric",
+      "python": 9.328093483651875e-06,
+      "rust": 0.0007112849250099985,
+      "delta": 0.0007019568315263466,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.probabilities.FATTO",
+      "kind": "numeric",
+      "python": 1.6371313909044235e-05,
+      "rust": 0.0003965199347862663,
+      "delta": 0.0003801486208772221,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.probabilities.NORMA",
+      "kind": "numeric",
+      "python": 0.999551444057274,
+      "rust": 0.9978683634959641,
+      "delta": 0.0016830805613099464,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.0004222217506053215,
+      "rust": 0.0008569463144028723,
+      "delta": 0.00043472456379755074,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.prompt_sha256",
+      "kind": "value",
+      "python": "12a9df0b26d25899d900353fa044e6677c3223856be49c9706fd846902b722c5",
+      "rust": "3c61fbaa71c67ec9bda947d72f7336b2e3989cee986bd17e369b3bb17450f2f5",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.9974981189490731,
+      "rust": 0.9888815867966088,
+      "delta": 0.008616532152464385,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.004026622215762132,
+      "rust": 0.017894395735645684,
+      "delta": 0.013867773519883553,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.999551444057274,
+      "rust": 0.9978683634959641,
+      "delta": 0.0016830805613099464,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s1.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.0004222217506053215,
+      "rust": 0.0008569463144028723,
+      "delta": 0.00043472456379755074,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.input_tokens",
+      "kind": "numeric",
+      "python": 403,
+      "rust": 366,
+      "delta": 37.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.option_logits.APERTO",
+      "kind": "numeric",
+      "python": -12.25,
+      "rust": 21.463272094726562,
+      "delta": 33.71327209472656,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.option_logits.DERIVAZIONE",
+      "kind": "numeric",
+      "python": -7.0625,
+      "rust": 23.88086700439453,
+      "delta": 30.94336700439453,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.option_logits.FATTO",
+      "kind": "numeric",
+      "python": -0.6484375,
+      "rust": 28.201644897460938,
+      "delta": 28.850082397460938,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.option_logits.NORMA",
+      "kind": "numeric",
+      "python": -9.5,
+      "rust": 24.002655029296875,
+      "delta": 33.502655029296875,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -8.125,
+      "rust": 22.241588592529297,
+      "delta": 30.366588592529297,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.probabilities.APERTO",
+      "kind": "numeric",
+      "python": 9.130258119881557e-06,
+      "rust": 0.0011477703119360993,
+      "delta": 0.0011386400538162178,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.probabilities.DERIVAZIONE",
+      "kind": "numeric",
+      "python": 0.0016345028434799906,
+      "rust": 0.01287665665926688,
+      "delta": 0.011242153815786889,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.probabilities.FATTO",
+      "kind": "numeric",
+      "python": 0.9976486765638558,
+      "rust": 0.9689315832752854,
+      "delta": 0.028717093288570417,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.probabilities.NORMA",
+      "kind": "numeric",
+      "python": 0.00014282126677692722,
+      "rust": 0.014544372306496148,
+      "delta": 0.014401551039719221,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.0005648690677674548,
+      "rust": 0.002499617447015403,
+      "delta": 0.0019347483792479482,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.prompt_sha256",
+      "kind": "value",
+      "python": "98a1ea1173cfe77a5e91fac19f625ea857d919d270f4cba31d66e8dedf69ef15",
+      "rust": "f3ba41925029ed63fc75b4167d6ad8efc1d81fd16ea0a67eec2330aae00ec43e",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.9885479949807077,
+      "rust": 0.8938125639260391,
+      "delta": 0.09473543105466853,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.018431291051434665,
+      "rust": 0.17090208544160504,
+      "delta": 0.15247079439017036,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.9976486765638558,
+      "rust": 0.9689315832752854,
+      "delta": 0.028717093288570417,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s2.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.0005648690677674548,
+      "rust": 0.002499617447015403,
+      "delta": 0.0019347483792479482,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.choice",
+      "kind": "value",
+      "python": null,
+      "rust": "DERIVAZIONE",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.input_tokens",
+      "kind": "numeric",
+      "python": 406,
+      "rust": 365,
+      "delta": 41.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.option_logits.APERTO",
+      "kind": "numeric",
+      "python": -11.0,
+      "rust": 22.18520736694336,
+      "delta": 33.18520736694336,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.option_logits.DERIVAZIONE",
+      "kind": "numeric",
+      "python": -4.25,
+      "rust": 28.095256805419922,
+      "delta": 32.34525680541992,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.option_logits.FATTO",
+      "kind": "numeric",
+      "python": -11.0,
+      "rust": 22.379470825195312,
+      "delta": 33.37947082519531,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.option_logits.NORMA",
+      "kind": "numeric",
+      "python": -11.5625,
+      "rust": 24.546966552734375,
+      "delta": 36.109466552734375,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -1.8359375,
+      "rust": 24.49393081665039,
+      "delta": 26.32986831665039,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.probabilities.APERTO",
+      "kind": "numeric",
+      "python": 9.611323145663768e-05,
+      "rust": 0.002553561123499006,
+      "delta": 0.002457447892042368,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.probabilities.DERIVAZIONE",
+      "kind": "numeric",
+      "python": 0.08208634752024556,
+      "rust": 0.9415602526019526,
+      "delta": 0.8594739050817071,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.probabilities.FATTO",
+      "kind": "numeric",
+      "python": 9.611323145663768e-05,
+      "rust": 0.003101085967415691,
+      "delta": 0.003004972735959053,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.probabilities.NORMA",
+      "kind": "numeric",
+      "python": 5.4763668513380027e-05,
+      "rust": 0.027092260312081274,
+      "delta": 0.027037496643567895,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.9176666623483278,
+      "rust": 0.02569283999505151,
+      "delta": 0.8919738223532763,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.prompt_sha256",
+      "kind": "value",
+      "python": "f054793b1894f222bf597b061ab6ee550fc7b73075d46aadea42076a2f00227d",
+      "rust": "c5e2a3a2f57403ad165c6944f2c094f3847c250384f9770bdbce62c5c0ec17ae",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.status",
+      "kind": "value",
+      "python": "insufficient_evidence",
+      "rust": "ok",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.8220640411932911,
+      "rust": 0.8249741439954672,
+      "delta": 0.0029101028021760733,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.2863768780888296,
+      "rust": 0.2816932483099267,
+      "delta": 0.004683629778902909,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.9176666623483278,
+      "rust": 0.9415602526019526,
+      "delta": 0.023893590253624808,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s3.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.9176666623483278,
+      "rust": 0.02569283999505151,
+      "delta": 0.8919738223532763,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.input_tokens",
+      "kind": "numeric",
+      "python": 401,
+      "rust": 364,
+      "delta": 37.0,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.option_logits.APERTO",
+      "kind": "numeric",
+      "python": -1.8671875,
+      "rust": 27.479351043701172,
+      "delta": 29.346538543701172,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.option_logits.DERIVAZIONE",
+      "kind": "numeric",
+      "python": -8.4375,
+      "rust": 25.720104217529297,
+      "delta": 34.1576042175293,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.option_logits.FATTO",
+      "kind": "numeric",
+      "python": -9.25,
+      "rust": 22.915924072265625,
+      "delta": 32.165924072265625,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.option_logits.NORMA",
+      "kind": "numeric",
+      "python": -10.375,
+      "rust": 24.36536979675293,
+      "delta": 34.74036979675293,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.option_logits.__insufficient__",
+      "kind": "numeric",
+      "python": -2.140625,
+      "rust": 25.045839309692383,
+      "delta": 27.186464309692383,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.probabilities.APERTO",
+      "kind": "numeric",
+      "python": 0.5672198081598112,
+      "rust": 0.7605993050523928,
+      "delta": 0.1933794968925816,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.probabilities.DERIVAZIONE",
+      "kind": "numeric",
+      "python": 0.0007948788207431166,
+      "rust": 0.13095579920787231,
+      "delta": 0.1301609203871292,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.probabilities.FATTO",
+      "kind": "numeric",
+      "python": 0.0003527253385451789,
+      "rust": 0.007930211533414493,
+      "delta": 0.007577486194869314,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.probabilities.NORMA",
+      "kind": "numeric",
+      "python": 0.00011451315145850154,
+      "rust": 0.03378866647476605,
+      "delta": 0.033674153323307546,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.probabilities.__insufficient__",
+      "kind": "numeric",
+      "python": 0.43151807452944196,
+      "rust": 0.06672601773155444,
+      "delta": 0.3647920567978875,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.prompt_sha256",
+      "kind": "value",
+      "python": "88ab4c4a742260af130c945549e2ec3f6eaff11a2c0f6150a6174c6b865d4e25",
+      "rust": "b8ca6c358b9f18646bc180a33572061649cdf27d0005dfcbce970c9564793960",
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.uncertainty.concentration",
+      "kind": "numeric",
+      "python": 0.5689162262662719,
+      "rust": 0.4980751185665018,
+      "delta": 0.07084110769977014,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.uncertainty.entropy_nats",
+      "kind": "numeric",
+      "python": 0.6938025688822254,
+      "rust": 0.8078169333730627,
+      "delta": 0.11401436449083735,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.uncertainty.top_probability",
+      "kind": "numeric",
+      "python": 0.5672198081598112,
+      "rust": 0.7605993050523928,
+      "delta": 0.1933794968925816,
+      "case": "answers"
+    },
+    {
+      "path": "answers.tipo_s4.uncertainty.unavailable_probability",
+      "kind": "numeric",
+      "python": 0.43151807452944196,
+      "rust": 0.06672601773155444,
+      "delta": 0.3647920567978875,
+      "case": "answers"
+    },
+    {
+      "path": "model.backend",
+      "kind": "value",
+      "python": "cuda",
+      "rust": "llama.cpp",
+      "case": "model"
+    },
+    {
+      "path": "model.device",
+      "kind": "value",
+      "python": "gpu",
+      "rust": "cuda",
+      "case": "model"
+    },
+    {
+      "path": "model.fingerprint",
+      "kind": "value",
+      "python": "60c40e2dd559cb920b54c49e4077d49039bc1a749cfdc496a89f1d046f226c70",
+      "rust": "e240e9f020916baab8b9965ef17d74cbd0c2e981bd010cd9aa089e779ff5eb37",
+      "case": "model"
+    },
+    {
+      "path": "model.load_seconds",
+      "kind": "numeric",
+      "python": 116.39976102899527,
+      "rust": 1.772107982,
+      "delta": 114.62765304699528,
+      "case": "model"
+    },
+    {
+      "path": "model.mlx",
+      "kind": "missing_in_rust",
+      "python": "0.32.2",
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "model.mlx_lm",
+      "kind": "missing_in_rust",
+      "python": "0.31.3",
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "model.n_gpu_layers",
+      "kind": "extra_in_rust",
+      "python": "<missing>",
+      "rust": 99,
+      "case": "model"
+    },
+    {
+      "path": "model.name",
+      "kind": "extra_in_rust",
+      "python": "<missing>",
+      "rust": "Qwen3.5-4B-Instruct-SingleTurn.Q4_K_M.gguf",
+      "case": "model"
+    },
+    {
+      "path": "model.path",
+      "kind": "extra_in_rust",
+      "python": "<missing>",
+      "rust": "/home/alforiva/inference/models/Qwen3.5-4B-Instruct-SingleTurn.Q4_K_M.gguf",
+      "case": "model"
+    },
+    {
+      "path": "model.precision",
+      "kind": "value",
+      "python": "q8",
+      "rust": "q4_k_m",
+      "case": "model"
+    },
+    {
+      "path": "model.prompt_version",
+      "kind": "value",
+      "python": "spark-decisions-v3",
+      "rust": "rizzo-decisions-v1",
+      "case": "model"
+    },
+    {
+      "path": "model.quantization_group_size",
+      "kind": "missing_in_rust",
+      "python": 64,
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "model.requested_revision",
+      "kind": "missing_in_rust",
+      "python": "0bcb35678590218655dff3765b9e61c83b35e9c4",
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "model.runtime_revision",
+      "kind": "missing_in_rust",
+      "python": "de2b4379fa1e2f2e1f99d84c83f0e008f651d86c",
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "model.source",
+      "kind": "value",
+      "python": "XHToken/Spark-X2.5-4B",
+      "rust": "Qwen3.5-4B-Instruct-SingleTurn.Q4_K_M.gguf",
+      "case": "model"
+    },
+    {
+      "path": "model.source_files",
+      "kind": "missing_in_rust",
+      "python": {
+        "model-00001-of-00005.safetensors": "cc36bfe9ca2b839df89fd8c0c94f566f6717bd07ae859dfad074b303f90bdf5b",
+        "model-00002-of-00005.safetensors": "d98ea6b9059433181042c1ff9fbec167ae2f0850029787c82520d04a04942952",
+        "model-00003-of-00005.safetensors": "0ba22891378cf0ef3d9bf1f73c3159df3fc3dab8aa6e17679a9ffe7e9d867526",
+        "model-00004-of-00005.safetensors": "6aae0314fdf8fc3801677c017f296bcb14bc16095286c3bd1e7ce27e0398a113",
+        "model-00005-of-00005.safetensors": "ffe48ea1c2ee668407dd6ded0c02529da9c54580a8c38f6e53cf902b85a1bd95",
+        "config.json": "767161ece8ed2891e44345afdf98d29c1cacb964116cb6db7d20dc1c757490ad",
+        "tokenizer.json": "710cce15cf3565674c499f9413997c6e8101f2bdd96245cff8f0311fb501248c",
+        "tokenizer_config.json": "0729b0aeb1b88e000687b51c72d5aece759233bb4f6fb353eb497676e04d43b0",
+        "chat_template.jinja": "705345721970da40e6aa56db548a46ecd1d8d94a5418808fa180ac19ee77a9ba"
+      },
+      "rust": "<missing>",
+      "case": "model"
+    },
+    {
+      "path": "timing.batches",
+      "kind": "numeric",
+      "python": 2,
+      "rust": 7,
+      "delta": 5.0,
+      "case": "timing"
+    },
+    {
+      "path": "timing.compile_seconds",
+      "kind": "numeric",
+      "python": 0.05434714496368542,
+      "rust": 0.194599413,
+      "delta": 0.14025226803631458,
+      "case": "timing"
+    },
+    {
+      "path": "timing.evaluated_tokens_including_padding",
+      "kind": "missing_in_rust",
+      "python": 1098,
+      "rust": "<missing>",
+      "case": "timing"
+    },
+    {
+      "path": "timing.inference_seconds",
+      "kind": "numeric",
+      "python": 27.108940461999737,
+      "rust": 0.441572979,
+      "delta": 26.667367482999737,
+      "case": "timing"
+    },
+    {
+      "path": "timing.load_seconds",
+      "kind": "extra_in_rust",
+      "python": "<missing>",
+      "rust": 1.772107982,
+      "case": "timing"
+    },
+    {
+      "path": "timing.logical_input_tokens",
+      "kind": "numeric",
+      "python": 2400,
+      "rust": 973,
+      "delta": 1427.0,
+      "case": "timing"
+    },
+    {
+      "path": "timing.peak_mlx_bytes",
+      "kind": "missing_in_rust",
+      "python": 5077165384,
+      "rust": "<missing>",
+      "case": "timing"
+    },
+    {
+      "path": "timing.prefill_seconds",
+      "kind": "numeric",
+      "python": 7.894683360005729,
+      "rust": 1.486060922,
+      "delta": 6.408622438005729,
+      "case": "timing"
+    },
+    {
+      "path": "timing.queue_seconds",
+      "kind": "numeric",
+      "python": 1.5910482034087181e-06,
+      "rust": 3.4997e-05,
+      "delta": 3.340595179659128e-05,
+      "case": "timing"
+    },
+    {
+      "path": "timing.shared_prefix_tokens",
+      "kind": "numeric",
+      "python": 266,
+      "rust": 242,
+      "delta": 24.0,
+      "case": "timing"
+    },
+    {
+      "path": "timing.total_seconds",
+      "kind": "numeric",
+      "python": 27.164013371046167,
+      "rust": 2.177152348,
+      "delta": 24.986861023046167,
+      "case": "timing"
+    }
+  ]
+}

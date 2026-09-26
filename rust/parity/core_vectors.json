@@ -1,0 +1,501 @@
+{
+  "_comment": "Golden vectors for decision-core parity: the same question + the same logits are decoded by the Python reference (rizzo_flow.decisions.decode) and by this Rust port. Any difference is a porting bug. The last three cases must produce identical ERRORS on both sides: the comparator compares error messages exactly.",
+  "candidates_note": "Candidate order (both implementations): boolean=[false,true]; choice=options in order; score=levels in order; numeric=anchors, then __below_range__, then __above_range__; then __insufficient__ when policy.allow_abstain is true.",
+  "cases": [
+    {
+      "id": "boolean_ok",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?"
+      },
+      "logits": [
+        0.0,
+        3.0,
+        -5.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "boolean_no_abstain",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?",
+        "policy": {
+          "allow_abstain": false
+        }
+      },
+      "logits": [
+        0.0,
+        2.5
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "boolean_abstain_wins",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?"
+      },
+      "logits": [
+        0.0,
+        0.5,
+        4.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "boolean_uncertain_policy",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?",
+        "policy": {
+          "min_top_probability": 0.95
+        }
+      },
+      "logits": [
+        0.0,
+        0.5,
+        -3.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "boolean_max_unavailable_policy",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?",
+        "policy": {
+          "max_unavailable_probability": 0.05
+        }
+      },
+      "logits": [
+        0.0,
+        1.0,
+        0.2
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "choice_ok",
+      "question": {
+        "type": "choice",
+        "instructions": "Classifica la frase.",
+        "options": [
+          {
+            "id": "NORMA",
+            "description": "Cita o descrive una disposizione normativa"
+          },
+          {
+            "id": "FATTO",
+            "description": "Riporta un dato numerico ufficiale"
+          },
+          {
+            "id": "DERIVAZIONE",
+            "description": "E una conseguenza calcolata o stimata"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        2.0,
+        -6.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "choice_tie_first_wins",
+      "question": {
+        "type": "choice",
+        "instructions": "Scegli.",
+        "options": [
+          {
+            "id": "primo",
+            "description": "Prima opzione"
+          },
+          {
+            "id": "secondo",
+            "description": "Seconda opzione"
+          }
+        ]
+      },
+      "logits": [
+        1.0,
+        1.0,
+        -5.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "choice_abstain_wins",
+      "question": {
+        "type": "choice",
+        "instructions": "Scegli.",
+        "options": [
+          {
+            "id": "primo",
+            "description": "Prima opzione"
+          },
+          {
+            "id": "secondo",
+            "description": "Seconda opzione"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        0.0,
+        5.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "choice_no_abstain",
+      "question": {
+        "type": "choice",
+        "instructions": "Scegli.",
+        "policy": {
+          "allow_abstain": false
+        },
+        "options": [
+          {
+            "id": "primo",
+            "description": "Prima opzione"
+          },
+          {
+            "id": "secondo",
+            "description": "Seconda opzione"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.5
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "choice_temperature_sharp",
+      "question": {
+        "type": "choice",
+        "instructions": "Classifica la frase.",
+        "options": [
+          {
+            "id": "NORMA",
+            "description": "Norma"
+          },
+          {
+            "id": "FATTO",
+            "description": "Fatto"
+          },
+          {
+            "id": "DERIVAZIONE",
+            "description": "Derivazione"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        2.0,
+        -6.0
+      ],
+      "temperature": 0.5
+    },
+    {
+      "id": "choice_temperature_soft",
+      "question": {
+        "type": "choice",
+        "instructions": "Classifica la frase.",
+        "options": [
+          {
+            "id": "NORMA",
+            "description": "Norma"
+          },
+          {
+            "id": "FATTO",
+            "description": "Fatto"
+          },
+          {
+            "id": "DERIVAZIONE",
+            "description": "Derivazione"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        2.0,
+        -6.0
+      ],
+      "temperature": 2.0
+    },
+    {
+      "id": "score_ok",
+      "question": {
+        "type": "score",
+        "instructions": "Quanto e urgente?",
+        "levels": [
+          "molto bassa",
+          "bassa",
+          "media",
+          "alta",
+          "molto alta"
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        2.0,
+        3.0,
+        4.0,
+        -8.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "score_polarized",
+      "question": {
+        "type": "score",
+        "instructions": "Quanto e urgente?",
+        "levels": [
+          "bassa",
+          "media",
+          "alta"
+        ]
+      },
+      "logits": [
+        10.0,
+        -5.0,
+        -5.0,
+        -20.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "score_abstain_wins",
+      "question": {
+        "type": "score",
+        "instructions": "Quanto e urgente?",
+        "levels": [
+          "bassa",
+          "media",
+          "alta"
+        ]
+      },
+      "logits": [
+        -2.0,
+        -2.0,
+        -1.0,
+        6.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_anchors_ok",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto pesa?",
+        "unit": "kg",
+        "anchors": [
+          {
+            "value": 1.0,
+            "description": "circa un chilo"
+          },
+          {
+            "value": 5.0,
+            "description": "circa cinque chili"
+          },
+          {
+            "value": 10.0,
+            "description": "circa dieci chili"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        2.0,
+        -5.0,
+        -5.0,
+        -9.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_below_range",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto pesa?",
+        "unit": "kg",
+        "anchors": [
+          {
+            "value": 2.0,
+            "description": "circa due chili"
+          },
+          {
+            "value": 8.0,
+            "description": "circa otto chili"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        0.0,
+        4.0,
+        0.0,
+        -9.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_above_range",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto pesa?",
+        "unit": "kg",
+        "anchors": [
+          {
+            "value": 2.0,
+            "description": "circa due chili"
+          },
+          {
+            "value": 8.0,
+            "description": "circa otto chili"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        0.0,
+        0.0,
+        4.0,
+        -9.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_abstain_wins",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto pesa?",
+        "unit": "kg",
+        "anchors": [
+          {
+            "value": 2.0,
+            "description": "circa due chili"
+          },
+          {
+            "value": 8.0,
+            "description": "circa otto chili"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        0.0,
+        -5.0,
+        -5.0,
+        4.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_no_abstain",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto pesa?",
+        "policy": {
+          "allow_abstain": false
+        },
+        "unit": "kg",
+        "anchors": [
+          {
+            "value": 2.0,
+            "description": "circa due chili"
+          },
+          {
+            "value": 8.0,
+            "description": "circa otto chili"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        1.0,
+        -4.0,
+        -4.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "numeric_real_anchors",
+      "question": {
+        "type": "numeric",
+        "instructions": "Quanto costa?",
+        "unit": "euro",
+        "anchors": [
+          {
+            "value": 0.5,
+            "description": "circa cinquanta centesimi"
+          },
+          {
+            "value": 2.25,
+            "description": "circa due euro e venticinque"
+          },
+          {
+            "value": 17.0,
+            "description": "circa diciassette euro"
+          }
+        ]
+      },
+      "logits": [
+        0.0,
+        2.0,
+        1.0,
+        -6.0,
+        -6.0,
+        -8.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "error_logit_count_mismatch",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?"
+      },
+      "logits": [
+        0.0,
+        1.0
+      ],
+      "temperature": 1.0
+    },
+    {
+      "id": "error_temperature_zero",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?"
+      },
+      "logits": [
+        0.0,
+        1.0,
+        -5.0
+      ],
+      "temperature": 0.0
+    },
+    {
+      "id": "error_temperature_negative",
+      "question": {
+        "type": "boolean",
+        "instructions": "L'affermazione e supportata dal testo?"
+      },
+      "logits": [
+        0.0,
+        1.0,
+        -5.0
+      ],
+      "temperature": -1.0
+    }
+  ]
+}

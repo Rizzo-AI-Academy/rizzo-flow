@@ -1,0 +1,24 @@
+{#-
+  Minimal chat template for Spark-X2.5, for llama.cpp.
+
+  Derived from the model's own template, which uses HuggingFace-only constructs
+  (raise_exception, namespace, tojson) that llama.cpp's Jinja subset cannot render:
+  rendering it made apply_chat_template fail and the port silently fell back to plain
+  text, so the model saw a different prompt than the reference (prompt_sha256 differed
+  on every question). This is reduced to what the template does for a system+user pair
+  with thinking disabled, using only constructs llama.cpp supports.
+
+  Pass it with `--chat-template templates/spark-x2.5-nonthinking.jinja`.
+-#}
+{%- for message in messages -%}
+{%- if message["role"] == "system" -%}
+{{- "<｜start▁of▁sentence｜><|System|>\nyou are a helpful assistant.\n\n" + message["content"] + "<｜end▁of▁sentence｜>" -}}
+{%- elif message["role"] == "user" -%}
+{{- "<｜start▁of▁sentence｜><|User|>" + message["content"] + "<｜end▁of▁sentence｜>" -}}
+{%- elif message["role"] == "assistant" -%}
+{{- "<｜start▁of▁sentence｜><|Bot|>" + message["content"] + "<｜end▁of▁sentence｜>" -}}
+{%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+{{- "<｜start▁of▁sentence｜><|Bot|></think>" -}}
+{%- endif -%}

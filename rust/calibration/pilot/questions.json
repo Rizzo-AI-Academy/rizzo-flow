@@ -1,0 +1,184 @@
+{
+  "_comment": "Pilot calibration set. Ground truth by construction: the evidence pack states the facts, and each question's label follows from it unambiguously (normative citation / official figure / conditional estimate / question-or-missing, and supported / not supported). NOT a domain dataset: a 24-row pilot used to exercise the calibration path end to end. Fit loss is not validation.",
+  "request": {
+    "state": "PACK — Canone TV. Il canone di abbonamento RAI e di 90 euro all'anno ed e disciplinato dal D.Lgs. 208/2021 (Testo unico sui servizi di media audiovisivi). Gli incassi da canone della RAI per il 2025 sono circa 1,8 miliardi di euro, pari al 66% dei ricavi. Nel 2024 lo Stato ha versato alla RAI 430 milioni di contributo pubblico. Non e indicata la percentuale della trattenuta statale sul gettito del canone.",
+    "questions": {
+      "t01": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Il canone RAI e disciplinato dal D.Lgs. 208/2021»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t02": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «La legge 27 dicembre 2025, n. 200 regola la materia del canone»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t03": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «L'art. 12 del regolamento stabilisce l'obbligo di pagamento»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t04": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Nel 2025 gli incassi da canone sono 1,8 miliardi di euro»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t05": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Il canone costa 90 euro all'anno»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t06": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Nel 2024 lo Stato ha versato 430 milioni di contributo pubblico»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t07": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Se si eliminasse il canone, 1,8 miliardi passerebbero al bilancio dello Stato»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t08": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Eliminando il contributo pubblico, il deficit RAI crescerebbe di 430 milioni»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t09": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Se il gettito calasse del 10%, mancherebbero circa 180 milioni»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t10": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Qual e la percentuale esatta della trattenuta statale sul gettito?»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t11": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Quanto varra il gettito del canone nel 2030?»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "t12": {
+        "type": "choice",
+        "instructions": "Classifica la frase: «Non e indicato l'importo della trattenuta statale»",
+        "options": [
+          {"id": "NORMA", "description": "Cita o descrive una disposizione normativa"},
+          {"id": "FATTO", "description": "Riporta un dato numerico ufficiale"},
+          {"id": "DERIVAZIONE", "description": "E una conseguenza calcolata o stimata"},
+          {"id": "APERTO", "description": "E una domanda o un dato mancante"}
+        ]
+      },
+      "s01": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il canone RAI costa 90 euro all'anno» e supportata dalle informazioni del testo?"
+      },
+      "s02": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Gli incassi da canone 2025 sono circa 1,8 miliardi» e supportata dalle informazioni del testo?"
+      },
+      "s03": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il canone copre circa il 66% dei ricavi RAI» e supportata dalle informazioni del testo?"
+      },
+      "s04": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Nel 2024 lo Stato ha versato 430 milioni alla RAI» e supportata dalle informazioni del testo?"
+      },
+      "s05": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il canone e disciplinato dal D.Lgs. 208/2021» e supportata dalle informazioni del testo?"
+      },
+      "s06": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Gli incassi da canone sono la voce principale dei ricavi RAI» e supportata dalle informazioni del testo?"
+      },
+      "s07": {
+        "type": "boolean",
+        "instructions": "L'affermazione «La pubblicita rappresenta il 90% dei ricavi RAI nel 2025» e supportata dalle informazioni del testo?"
+      },
+      "s08": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il canone RAI costa 200 euro all'anno» e supportata dalle informazioni del testo?"
+      },
+      "s09": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Gli incassi da canone del 2025 sono 5 miliardi di euro» e supportata dalle informazioni del testo?"
+      },
+      "s10": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Lo Stato non ha mai versato contributi alla RAI» e supportata dalle informazioni del testo?"
+      },
+      "s11": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il canone e stato abolito nel 2025» e supportata dalle informazioni del testo?"
+      },
+      "s12": {
+        "type": "boolean",
+        "instructions": "L'affermazione «Il 90% dei ricavi RAI viene dal canone» e supportata dalle informazioni del testo?"
+      }
+    }
+  },
+  "labels": {
+    "t01": "NORMA", "t02": "NORMA", "t03": "NORMA",
+    "t04": "FATTO", "t05": "FATTO", "t06": "FATTO",
+    "t07": "DERIVAZIONE", "t08": "DERIVAZIONE", "t09": "DERIVAZIONE",
+    "t10": "APERTO", "t11": "APERTO", "t12": "APERTO",
+    "s01": "true", "s02": "true", "s03": "true", "s04": "true", "s05": "true", "s06": "true",
+    "s07": "false", "s08": "false", "s09": "false", "s10": "false", "s11": "false", "s12": "false"
+  }
+}
