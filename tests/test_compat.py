@@ -100,9 +100,16 @@ def test_validation_models_and_auth(body):
         assert "/v1/decisions" in http.get("/snake").text
         assert http.get("/playground/logo.png").headers["content-type"] == "image/png"
     with client(api_key="secret") as http:
+        headers = {"Authorization": "Bearer secret"}
+        native = {
+            "state": "Evidence",
+            "questions": {"q": {"type": "boolean", "instructions": "Is this evidence?"}},
+        }
         assert http.get("/v1/models").status_code == 401
         assert http.post("/v1/systemone", json=body).status_code == 401
-        assert http.get("/v1/models", headers={"Authorization": "Bearer secret"}).status_code == 200
+        assert http.post("/v1/decisions", json=native).status_code == 401
+        assert http.get("/v1/models", headers=headers).status_code == 200
+        assert http.post("/v1/decisions", json=native, headers=headers).status_code == 200
 
 
 def test_twenty_six_answer_letters(body):
