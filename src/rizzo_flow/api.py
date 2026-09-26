@@ -70,7 +70,7 @@ def create_app(engine, api_key=None):
     def health():
         return {"status": "ready", "model": engine.backend.metadata}
 
-    @app.post("/v1/decisions", response_model=Response)
+    @app.post("/v1/decisions", response_model=Response, dependencies=[Depends(authorize)])
     def decisions(request: Request):
         try:
             return engine.decide(request)
