@@ -194,6 +194,47 @@ def test_interrupted_download_resumes_where_it_stopped(tmp_path):
     assert requests == [None, f"bytes={len(payload) // 3}-"]
 
 
+def test_a_part_file_that_already_holds_every_byte_is_not_a_dead_end(tmp_path):
+    """A run stopped after the last byte and before the rename (while hashing, say) leaves a
+    complete part file. A range that starts at its end is answered 416, as GitHub and the
+    Hugging Face CDN do: the file is kept if it is the right one, else fetched again."""
+    payload = bytes(range(256)) * 64
+    requests = []
+
+    class Ranged(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            requests.append(self.headers.get("Range"))
+            start = int((self.headers.get("Range") or "bytes=0-").removeprefix("bytes=")[:-1])
+            if start >= len(payload):
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{len(payload)}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            body = payload[start:]
+            self.send_response(206 if start else 200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Ranged)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    digest = hashlib.sha256(payload).hexdigest()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/weights.gguf"
+        (tmp_path / "kept.gguf.part").write_bytes(payload)
+        assert release.fetch(url, tmp_path / "kept.gguf", digest).read_bytes() == payload
+        (tmp_path / "stale.gguf.part").write_bytes(payload + b"tail")
+        assert release.fetch(url, tmp_path / "stale.gguf", digest).read_bytes() == payload
+    finally:
+        server.shutdown()
+    assert requests == [f"bytes={len(payload)}-", f"bytes={len(payload) + 4}-", None]
+    assert not list(tmp_path.glob("*.part"))
+
+
 def test_token_goes_to_the_first_host_only_and_denials_fail_fast(tmp_path):
     payload = b"private weights"
     seen = []
