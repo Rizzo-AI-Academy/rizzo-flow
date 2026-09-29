@@ -1,4 +1,4 @@
-"""Run SemIf's own fixtures through Rizzo Flow (llama.cpp or MLX) or SemIf's MLX backend.
+"""Run SemIf's own fixtures through Rizzo Flow (llama.cpp, MLX or MAX) or SemIf's MLX backend.
 
 Both systems see the same rows, are scored by SemIf's `benchmarks/evaluate.py`, and are timed
 with the scope SemIf documents: warm model; prompt construction, tokenization, forward passes
@@ -51,8 +51,8 @@ class MlxMemory:
         return mx.get_peak_memory()
 
 
-class LlamaMemory:
-    """Largest drop in free device memory since before the load; never resets."""
+class DeviceMemory:
+    """Largest drop in free device memory since before the load (llama.cpp, MAX); never resets."""
 
     key = "peak_device_bytes"
 
@@ -84,7 +84,7 @@ class Rizzo:
         )
         self.engine = Engine(backend)
         self.metadata = {**backend.metadata, "batch_size": args.batch_size}
-        self.memory = MlxMemory() if args.backend == "mlx" else LlamaMemory(backend)
+        self.memory = MlxMemory() if args.backend == "mlx" else DeviceMemory(backend)
 
     def _run(self, rows, mode):
         questions = {
@@ -210,7 +210,9 @@ def main():
     parser.add_argument("--system", choices=("rizzo", "semif"), required=True)
     parser.add_argument("--semif", type=Path, required=True, help="SemIf repository checkout")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--backend", choices=("llama", "mlx"), default="llama", help="Rizzo only")
+    parser.add_argument(
+        "--backend", choices=("llama", "mlx", "max"), default="llama", help="Rizzo only"
+    )
     parser.add_argument("--size", default="4b", help="Rizzo checkpoint: 4b or 1.7b")
     parser.add_argument("--quant", help="Rizzo on llama.cpp: q8_0 (default), q4_k_m, bf16")
     parser.add_argument("--weights", choices=("flow", "base"), help="pinned GGUF; default flow")

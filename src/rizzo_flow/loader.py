@@ -1,14 +1,15 @@
-"""Choose and load the scoring backend: llama.cpp by default, MLX on request."""
+"""Choose and load the scoring backend: llama.cpp by default, MLX or MAX on request."""
 
 from pathlib import Path
 
 from .config import DEFAULT_SIZE, checkpoint_path, gguf_spec
 
-BACKENDS = ("llama", "mlx")
+BACKENDS = ("llama", "mlx", "max")
 # `auto`, `gpu` and `cpu` work everywhere. The other names ask for one GPU family: `mlx` and
 # `cuda` also keep their meaning for the MLX backend, the rest exist in llama.cpp only.
 DEVICES = ("auto", "gpu", "cpu", "cuda", "metal", "vulkan", "rocm", "sycl", "mlx")
 MLX_DEVICES = ("auto", "gpu", "cpu", "cuda", "mlx")
+MAX_DEVICES = ("auto", "gpu", "cpu")
 
 
 def load_backend(
@@ -24,10 +25,37 @@ def load_backend(
     batch_size=4,
     threads=None,
     kv_type=None,
+    prefill_chunk=None,
+    max_resident=None,
 ):
     if backend not in BACKENDS:
         raise ValueError(f"Backend must be one of: {', '.join(BACKENDS)}")
+    if backend == "max":
+        if quant or bits:
+            raise ValueError("--quant and --bits do not apply to the MAX backend (BF16 only)")
+        if device not in MAX_DEVICES:
+            raise ValueError(f"--device {device}: the MAX backend takes auto, gpu or cpu")
+        if kv_type:
+            raise ValueError("--kv-type exists only in the llama backend")
+        if model and weights:
+            raise ValueError(
+                "--weights picks a pinned checkpoint; with --model the files are yours"
+            )
+        from .backend_max import MaxBackend
+
+        return MaxBackend.load(
+            model or checkpoint_path(size, weights),
+            device=device,
+            ctx=ctx,
+            batch_size=batch_size,
+            **({"prefill_chunk": prefill_chunk} if prefill_chunk else {}),
+            **({"max_resident": max_resident} if max_resident else {}),
+        )
+    if max_resident:
+        raise ValueError("--max-resident exists only in the MAX backend")
     if backend == "mlx":
+        if prefill_chunk:
+            raise ValueError("prefill_chunk is not configurable on the MLX backend")
         if quant:
             raise ValueError("--quant selects a GGUF file (llama backend); with MLX use --bits 4|8")
         if device not in MLX_DEVICES:
@@ -69,11 +97,12 @@ def load_backend(
         batch_size=batch_size,
         threads=threads,
         kv_type=kv_type,
+        **({"prefill_chunk": prefill_chunk} if prefill_chunk else {}),
     )
 
 
 def describe() -> dict:
-    """What `rizzo devices` prints: the llama.cpp runtime and its devices, and MLX if present."""
+    """What `rizzo devices` prints: the llama.cpp runtime and its devices, MLX and MAX if present."""
     from . import llama_release
     from .llama_cpp import Library, choose_device
 
@@ -102,4 +131,10 @@ def describe() -> dict:
         report["mlx"] = describe_mlx()
     except ImportError:
         report["mlx"] = {"installed": False}
+    try:
+        from .backend_max import describe as describe_max
+
+        report["max"] = describe_max()
+    except ImportError:
+        report["max"] = {"installed": False}
     return report

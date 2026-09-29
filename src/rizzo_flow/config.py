@@ -1,3 +1,4 @@
+import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -306,3 +307,21 @@ def download_model(destination=None, size=DEFAULT_SIZE, variant=None):
             "README.md",
         ],
     )
+
+
+def checkpoint_hashes(path: Path) -> dict[str, str]:
+    """sha256 of the files that define a safetensors checkpoint (weights, config, tokenizer,
+    chat template), hashed once at load for auditability and calibration binding."""
+    files = sorted(path.glob("*.safetensors")) + [
+        path / "config.json",
+        path / "tokenizer.json",
+        path / "tokenizer_config.json",
+    ]
+    files += list(path.glob("*.jinja"))
+    hashes = {}
+    for file in files:
+        with file.open("rb") as stream:
+            hashes[file.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+    if not any(name.endswith(".safetensors") for name in hashes):
+        raise ValueError("Model directory contains no safetensors weights")
+    return hashes

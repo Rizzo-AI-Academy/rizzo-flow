@@ -31,6 +31,12 @@ cpu = [
   "mlx-lm==0.31.3",
   "spark-mlx-llm @ git+https://github.com/XHToken/Spark-MLX-LLM.git@de2b4379fa1e2f2e1f99d84c83f0e008f651d86c",
 ]
+# Optional third runtime (`--backend max`): Modular's MAX graph compiler, BF16 safetensors.
+# MAX ships wheels for Linux (x86_64, aarch64) and Apple Silicon only.
+max = [
+  "max==26.6.0; sys_platform == 'linux' or (sys_platform == 'darwin' and platform_machine == 'arm64')",
+  "tokenizers>=0.21,<1",
+]
 test = ["pytest>=8.4,<10", "httpx>=0.28,<1", "ruff>=0.12"]
 
 [tool.uv]
@@ -51,7 +57,7 @@ allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["mlx: small real Spark architecture tests; requires MLX", "integration: requires downloaded Spark weights"]
+markers = ["mlx: small real Spark architecture tests; requires MLX", "max: MAX graphs against the MLX reference; requires MAX and MLX", "integration: requires downloaded Spark weights"]
 
 [tool.ruff]
 line-length = 100

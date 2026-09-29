@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from . import llama_release
+from .chat_template import compile_template
 from .config import GGUF, identify
 from .llama_cpp import Session
 from .prompts import PROMPT_VERSION, Compiled, canonical
@@ -25,14 +26,7 @@ class LlamaTokenizer:
     its chat template rendered the way transformers renders it, its vocabulary for encoding."""
 
     def __init__(self, session, template: str):
-        from jinja2.sandbox import ImmutableSandboxedEnvironment
-
-        def raise_exception(message):
-            raise ValueError(message)
-
-        environment = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True)
-        environment.globals["raise_exception"] = raise_exception
-        self.template = environment.from_string(template)
+        self.render = compile_template(template)
         self.session = session
         self.pad_token_id = session.pad_token
         self.eos_token_id = session.eos_token
@@ -40,7 +34,7 @@ class LlamaTokenizer:
     def apply_chat_template(self, messages, tokenize=False, **variables) -> str:
         if tokenize:
             raise ValueError("Render the text, then call encode()")
-        return self.template.render(messages=messages, **variables)
+        return self.render(messages=messages, **variables)
 
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
         return self.session.tokenize(text, add_special_tokens)

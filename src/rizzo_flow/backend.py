@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from .config import FLOW_CHECKPOINTS, RUNTIME_REVISION, identify
+from .config import FLOW_CHECKPOINTS, RUNTIME_REVISION, checkpoint_hashes, identify
 from .prompts import PROMPT_VERSION, Compiled, canonical
 from .runtime import resolve
 
@@ -88,19 +88,7 @@ class SparkBackend:
         mx.set_default_device(target)
         mx.set_cache_limit(256 * 1024**2)
         started = time.perf_counter()
-        # Hash checkpoint contents once at startup for auditability and calibration binding.
-        files = sorted(path.glob("*.safetensors")) + [
-            path / "config.json",
-            path / "tokenizer.json",
-            path / "tokenizer_config.json",
-        ]
-        files += list(path.glob("*.jinja"))
-        hashes = {}
-        for file in files:
-            with file.open("rb") as stream:
-                hashes[file.name] = hashlib.file_digest(stream, "sha256").hexdigest()
-        if not any(name.endswith(".safetensors") for name in hashes):
-            raise ValueError("Model directory contains no safetensors weights")
+        hashes = checkpoint_hashes(path)
         config = json.loads((path / "config.json").read_text(encoding="utf-8"))
         if config.get("model_type") != "spark2_5":
             raise ValueError("Only the Spark2.5 architecture is supported")
