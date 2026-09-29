@@ -126,6 +126,12 @@ def main():
                 p.add_argument("--compare-modes", action="store_true")
     args = parser.parse_args()
     try:
+        # Results are create-only (write_json): refuse a taken --output now, not once the model
+        # has loaded and the whole run is done, when the report could only be thrown away.
+        if getattr(args, "output", None) and Path(args.output).exists():
+            raise ValueError(
+                f"{args.output} already exists: results are create-only, pick a new path"
+            )
         if args.command == "download":
             if args.backend == "mlx":
                 print(download_model(args.destination, args.size, args.weights))

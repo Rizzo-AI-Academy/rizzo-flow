@@ -245,6 +245,8 @@ def main():
     if args.baselines:
         print(json.dumps(baselines(rows, load(args.train)), indent=2))
         return
+    if args.output and Path(args.output).exists():  # create-only: say so before the model loads
+        parser.error(f"{args.output} already exists: results are create-only, pick a new path")
     served, metadata, predictions, timing, cases = run_model(rows, args)
     report = {
         "dataset": "LocalLLaMA/typed-decisions",
