@@ -128,10 +128,10 @@ sha256. `rizzo devices` shows what the runtime sees and what `--device auto` wil
 
 | Your machine | Build picked (`--runtime auto`) | Status |
 | --- | --- | --- |
-| Windows or Linux, NVIDIA GPU | `cuda` — CUDA 13 libraries included; needs a recent driver, no toolkit | **tested on Windows 10 + RTX 5060 Ti**: every current number in this README. Linux not tried |
-| Windows or Linux, AMD or Intel GPU | `vulkan` — uses the GPU driver you already have | Community reports cover an AMD Radeon 780M and Intel Iris Xe; see [#11](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/11) and [#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7). The Intel run used Q4_K_M; these reports have not been independently reproduced by the maintainers. |
+| Windows or Linux, NVIDIA GPU | `cuda` — CUDA 13 libraries included; needs a recent driver, no toolkit | **tested on Windows 10 + RTX 5060 Ti**: every current number in this README. A community report covers Debian 13 + RTX PRO 4000 Blackwell with the base weights (`--weights base`): same answers as the Windows run, 36 ms p50; see [#25](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/25). It has not been independently reproduced by the maintainers. |
+| Windows or Linux, AMD or Intel GPU | `vulkan` — uses the GPU driver you already have | Community reports cover an AMD Radeon 780M and Intel Iris Xe; see [#11](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/11) and [#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7). The Intel run used Q4_K_M. The Vulkan build was also reported on an NVIDIA GPU under Linux (same card as above): same answers as CUDA, about 1.8× the latency; see [#25](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/25). None of these reports have been independently reproduced by the maintainers. |
 | Mac, Apple Silicon | `metal` | A community report covers an M3 Pro; see [#5](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/5). The run has not been independently reproduced by the maintainers. The two fixes it needed (context freed before exit, a warning when an x86_64 Python under Rosetta hides the GPU) are merged ([#4](https://github.com/Rizzo-AI-Academy/rizzo-flow/pull/4)), and so is `--device metal` on M4 ([#9](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/9)). |
-| No GPU | `vulkan` falls back to the CPU; or `--runtime cpu` | CPU mode was reported on an Intel laptop with an iGPU ([#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7)); a GPU-free host has not been tested. |
+| No GPU | `vulkan` falls back to the CPU; or `--runtime cpu` | CPU mode was reported on an Intel laptop with an iGPU ([#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7)) and, with the `cpu` package, on a Ryzen 9 9950X3D desktop ([#25](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/25): 727 ms p50 with `--threads 16`; with `--threads` unset llama.cpp uses 4 threads, 3× slower); a GPU-free host has not been tested. These reports have not been independently reproduced by the maintainers. |
 
 Other builds on request: `uv run rizzo download --only runtime --runtime rocm` (AMD, ROCm/HIP),
 `--runtime sycl` (Intel oneAPI), `--runtime cpu`. Several builds can live side by side and
@@ -582,9 +582,10 @@ Reading this honestly:
 - **Own fixtures** (small, read while writing the prompt: a smoke test, not a benchmark): 19/20
   labelled decisions (NLL 0.459), 9/9 perturbations, median 66 ms over 17 requests; a long state
   with 4 questions takes 0.47 s shared against 1.30 s fresh, same argmax.
-- Still not run: macOS/Metal, Linux, AMD, Intel and CPU-only with this runtime; WANLI, Every, the
-  TypeSafe subset; SemIf on this same GPU. Details and reports:
-  [`results/README.md`](results/README.md).
+- Still not run by us: macOS/Metal, Linux, AMD, Intel and CPU-only with this runtime; WANLI, Every,
+  the TypeSafe subset; SemIf on this same GPU. Community reports now cover Linux + NVIDIA (CUDA
+  and Vulkan) and CPU-only on a Ryzen 9 9950X3D desktop — see the hardware table above. Details
+  and reports: [`results/README.md`](results/README.md).
 
 ### Before llama.cpp: the MLX runtime, for the record
 
@@ -644,8 +645,9 @@ did not change with the runtime: llama.cpp receives byte-identical prompts and t
 - 26 options per question (Jev: 255; SemIf: 16). Beyond that you need two stages.
 - **Tested by us on one machine.** Only Windows + NVIDIA (CUDA and Vulkan builds) has been run
   by us. Community reports cover macOS/Metal (M3 Pro), AMD and Intel iGPUs with Vulkan on Linux
-  and Windows, and CPU-only on an Intel laptop (see the hardware table); ROCm, SYCL and a
-  GPU-free machine are untested.
+  and Windows, Linux + NVIDIA with CUDA and Vulkan (an RTX PRO 4000 Blackwell), and CPU-only on
+  an Intel laptop and a Ryzen 9 9950X3D desktop (see the hardware table); ROCm, SYCL and a
+  dedicated GPU-free machine are untested.
 - llama.cpp is driven through ctypes bindings tied to one pinned release (`b11081`): a build of
   another commit can crash instead of failing cleanly.
 - The KV cache costs ~144 KiB per token on the 4B, four times what the MLX runtime needs:
