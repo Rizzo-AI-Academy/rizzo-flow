@@ -312,6 +312,16 @@ def fetch(
                 failure = f"connection closed at {done} of {total} bytes"
                 continue
         except urllib.error.HTTPError as error:
+            if error.code == 416 and have:
+                # Nothing left to send: the part file already holds every byte, left by a run
+                # stopped before the rename (while hashing, say). Keep it if it is the file;
+                # otherwise start over instead of asking for the same range again.
+                if sha256_file(partial) == sha256:
+                    partial.replace(target)
+                    return target
+                partial.unlink()
+                failure = str(error)
+                continue
             if error.code in (401, 403, 404):  # retrying will not help
                 hint = (
                     "the repository is private or gated: set HF_TOKEN (environment or .env) "
