@@ -32,7 +32,9 @@ class FakeBackend:
         self.metadata = {"fingerprint": "test-only"}
 
     def score(self, prefix, jobs, mode):
-        return {j.id: [0, 10] + [0] * (len(j.slots) - 2) for j in jobs}, {"generated_tokens": 0}
+        # The second candidate wins; a single candidate gets the first logit.
+        logits = {j.id: ([0, 10] + [0] * (len(j.slots) - 2))[: len(j.slots)] for j in jobs}
+        return logits, {"generated_tokens": 0}
 
 
 @pytest.fixture
@@ -60,6 +62,19 @@ def test_shared_prefix_and_state_mutation(payload):
     payload["state"]["ticket"] = "Changed"
     other, _ = compile_request(CharacterTokenizer(), Request.model_validate(payload), 8192)
     assert other != prefix
+
+
+def test_single_option_is_still_a_decision_with_abstention(payload):
+    # One option plus the built-in __insufficient__: two slots, a real decision (the fake backend
+    # favours the second, so abstention wins); without abstention it is certain.
+    payload["questions"] = {"route": payload["questions"]["route"]}
+    payload["questions"]["route"]["options"] = [{"id": "access", "description": "Login problem"}]
+    answer = Engine(FakeBackend()).decide(payload)["answers"]["route"]
+    assert answer["status"] == "insufficient_evidence" and answer["choice"] is None
+    payload["questions"]["route"]["policy"] = {"allow_abstain": False}
+    answer = Engine(FakeBackend()).decide(payload)["answers"]["route"]
+    assert answer["choice"] == "access" and answer["probabilities"]["access"] == pytest.approx(1)
+    assert answer["uncertainty"]["concentration"] == 1
 
 
 def test_limits_reject_without_truncation(payload):

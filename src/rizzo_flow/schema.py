@@ -46,7 +46,7 @@ class Option(Strict):
 
 class ChoiceQuestion(BaseQuestion):
     type: Literal["choice"]
-    options: list[Option] = Field(min_length=2, max_length=MAX_SLOTS)
+    options: list[Option] = Field(min_length=1, max_length=MAX_SLOTS)
 
     @model_validator(mode="after")
     def unique_ids(self):

@@ -39,7 +39,7 @@ class NoulQuestion(Wire):
 class ChoiceQuestion(Wire):
     type: Literal["choice"]
     instructions: Structured
-    criteria: dict[str, Structured | None] = Field(min_length=2, max_length=MAX_OPTIONS)
+    criteria: dict[str, Structured | None] = Field(min_length=1, max_length=MAX_OPTIONS)
 
 
 class ScoreQuestion(Wire):
@@ -147,6 +147,8 @@ def to_native(request: SystemOneRequest) -> tuple[Request, dict[str, list[str]]]
 def confidence(probabilities) -> float:
     """Peak-over-uniform statistic from the public Confidence page; not a calibrated accuracy."""
     count = len(probabilities)
+    if count == 1:  # a single option is certain by construction
+        return 1.0
     return max(0.0, min(1.0, (count * max(probabilities) - 1) / (count - 1)))
 
 

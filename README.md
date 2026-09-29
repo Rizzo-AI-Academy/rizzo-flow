@@ -347,7 +347,7 @@ RTX 5060 Ti at 8 bit.
 | Type | You provide | You get |
 | --- | --- | --- |
 | `boolean` | optional descriptions of *true* / *false* | `value`, probability of true |
-| `choice` | `options` (id + description), up to 26 | `choice`, probability of every option |
+| `choice` | `options` (id + description), 1 to 26 | `choice`, probability of every option |
 | `score` | ordered `levels`, low → high | probability-weighted `score`, `normalized_score`, spread |
 | `numeric` | increasing `anchors` (value + description) and a `unit` | probability-weighted `value`, median, spread, below/above-range probability |
 
@@ -355,7 +355,8 @@ Every type can **abstain**: a built-in `__insufficient__` option (on by default)
 `__below_range__` / `__above_range__` for `numeric`. When those win, the primary value is `null`
 and `status` says why: `ok`, `insufficient_evidence`, `out_of_range`, `uncertain`. Thresholds are
 a per-question `policy`. Special options use answer slots too: 26 options without abstention, 25
-with it, 24/23 anchors for `numeric`.
+with it, 24/23 anchors for `numeric`. A `choice` with a single option is still a decision with
+abstention on (that option or `__insufficient__`); without it the answer is certain by construction.
 
 ```json
 {
@@ -387,7 +388,7 @@ Same request and response shape as the public [TypeSafe API reference](https://d
 | Type | `criteria` | Answer |
 | --- | --- | --- |
 | `noul` | optional `{true, false}` descriptions | `noul`: probability of yes, 0–1 |
-| `choice` | map *option → description* (or `null`), up to 26 | `choice`, `probabilities`, `confidence` |
+| `choice` | map *option → description* (or `null`), 1 to 26 | `choice`, `probabilities`, `confidence` |
 | `score` | ordered array of level descriptions, up to 10 | `score`, `legend`, `probabilities`, `confidence` |
 
 ```bash
@@ -429,7 +430,9 @@ the real SDK). **The interface is compatible, the model is not Jev:**
 - `model` accepts `rizzo-latest`, the local id, and any `jev-*` name as a convenience alias. The
   response **always reports the local model id** — no answer ever presents itself as Jev.
 - `instructions` and `criteria` may be strings, objects or arrays, as in the original.
-- No abstention in this format (`allow_abstain: false`); `noul` is P(yes) over two options.
+- No abstention in this format (`allow_abstain: false`); `noul` is P(yes) over two options. A
+  `choice` with a single criterion is therefore answered with probability 1 and `confidence` 1
+  (instead of a 422): callers written for the hosted API send such questions.
 - `confidence = (n · p_max − 1) / (n − 1)`, the statistic shown on TypeSafe's Confidence page;
   Jev's exact formula is not public. It describes the *shape* of the distribution, not the
   probability of being right.

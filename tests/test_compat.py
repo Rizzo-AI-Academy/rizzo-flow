@@ -133,3 +133,16 @@ def test_fine_tuned_weights_get_their_own_model_name():
     assert model_name({**base, "weights": "flow"}) == "rizzo-flow-4b-q8_0"
     small = {"source": "XHToken/Spark-X2.5-1.7B", "precision": "bf16", "weights": "flow"}
     assert model_name(small) == "rizzo-flow-1.7b-bf16"
+
+
+def test_one_option_choice_is_answered_with_certainty(body):
+    # Callers built for the hosted API send a choice with a single option; it is certain, not a 422.
+    body["questions"]["department"]["criteria"] = {"Billing team": None}
+    with client() as http:
+        response = http.post("/v1/systemone", json=body)
+        assert response.status_code == 200, response.text
+        department = response.json()["answers"]["department"]
+    assert department["choice"] == "Billing team"
+    assert department["probabilities"] == {"Billing team": pytest.approx(1)}
+    assert department["confidence"] == 1
+    assert confidence([1.0]) == 1

@@ -54,8 +54,8 @@ def candidates(question: Question) -> list[Candidate]:
 def softmax(logits: list[float], temperature: float = 1.0) -> list[float]:
     if not math.isfinite(temperature) or temperature <= 0:
         raise ValueError("Temperature must be finite and positive")
-    if len(logits) < 2 or not all(math.isfinite(x) for x in logits):
-        raise ValueError("At least two finite logits are required")
+    if not logits or not all(math.isfinite(x) for x in logits):
+        raise ValueError("At least one finite logit is required")
     maximum = max(logits)
     weights = [math.exp((x - maximum) / temperature) for x in logits]
     total = sum(weights)
@@ -105,6 +105,8 @@ def decode(question: Question, logits: list[float], temperature: float = 1.0) ->
         )
     elif top < question.policy.min_top_probability:
         status = "uncertain"
+    # A single candidate is certain by construction: there is no spread to normalize.
+    concentration = 1 - entropy / math.log(len(ps)) if len(ps) > 1 else 1.0
     result = {
         "type": question.type,
         "status": status,
@@ -114,7 +116,7 @@ def decode(question: Question, logits: list[float], temperature: float = 1.0) ->
         "uncertainty": {
             "top_probability": top,
             "entropy_nats": entropy,
-            "concentration": max(0.0, min(1.0, 1 - entropy / math.log(len(ps)))),
+            "concentration": max(0.0, min(1.0, concentration)),
             "unavailable_probability": unavailable,
         },
         "probability_status": "uncalibrated_conditional_option_scores"
