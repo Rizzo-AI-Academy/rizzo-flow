@@ -21,6 +21,7 @@
 <img src="https://img.shields.io/badge/latency-~50%20ms%20%2F%20decision%20(Q8__0%2C%20RTX%205060%20Ti)-brightgreen" alt="about 50 ms per decision at Q8_0 on an RTX 5060 Ti" />
 <img src="https://img.shields.io/badge/GPU%20memory-~5.6%20GiB%20(Q8__0)-brightgreen" alt="about 5.6 GiB of GPU memory at Q8_0" />
 <img src="https://img.shields.io/badge/license-Apache--2.0-brightgreen" alt="Apache-2.0 license" />
+<a href="https://scorecard.dev/viewer/?uri=github.com/Rizzo-AI-Academy/rizzo-flow"><img src="https://api.scorecard.dev/projects/github.com/Rizzo-AI-Academy/rizzo-flow/badge" alt="OpenSSF Scorecard score" /></a>
 </p>
 
 <sub>🌐 <a href="https://rizzo-ai-academy.github.io/rizzo-flow/"><b>Website</b></a> · A project by <a href="https://www.rizzoaiacademy.com"><b>Rizzo AI Academy</b></a> · 🇮🇹 <a href="docs/README.it.md">Documentazione dettagliata in italiano</a></sub>

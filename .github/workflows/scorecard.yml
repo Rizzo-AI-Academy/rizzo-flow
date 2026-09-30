@@ -1,0 +1,70 @@
+name: Scorecard
+
+# OpenSSF Scorecard (https://scorecard.dev) checks the repository's supply-chain practices (branch
+# protection, pinned dependencies, token permissions, a security policy...) and scores each from 0
+# to 10. The results go to code scanning and, signed, to api.scorecard.dev, which serves a badge.
+
+on:
+  # The action runs on the default branch only: on any other branch it fails.
+  push:
+    branches: [main]
+  # Weekly, so that the published score follows what changes without a push (Maintained,
+  # Vulnerabilities...). Off the hour: GitHub warns that scheduled runs can be delayed at busy
+  # times, the start of every hour among them. After 60 days without activity in a public
+  # repository, GitHub pauses the schedule.
+  schedule:
+    - cron: "23 5 * * 1"
+  # A change to a classic branch protection rule re-runs it; a ruleset change is picked up by the
+  # next run.
+  branch_protection_rule:
+
+# Read-only default. A job's own permissions block replaces it: the job below gets the two scopes
+# it lists and nothing else, not even contents: read (a public repository does not need it).
+permissions:
+  contents: read
+
+# A newer run makes the one in progress pointless, and the last result published is the newest.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# api.scorecard.dev accepts the results only from a workflow that keeps these rules
+# (https://github.com/ossf/scorecard-action#workflow-restrictions): no env, defaults or write
+# permissions at the workflow level, and no other job with id-token: write; in this job no env,
+# defaults, container, services or run: steps, only the actions listed there, on a GitHub-hosted
+# Ubuntu runner. In v2.4.4 a refused publish is only a warning in the log: the run stays green and
+# the badge keeps the last score it got.
+jobs:
+  analysis:
+    name: Scorecard analysis
+    # Forks skip it: the action does not support them, and a fork would publish a score of its own.
+    # The repository is named here: if it is renamed or moved, update this line.
+    if: github.repository == 'Rizzo-AI-Academy/rizzo-flow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write # upload the results to code scanning
+      id-token: write # sign the results for api.scorecard.dev (publish_results below)
+    steps:
+      # Actions are pinned to commits (the tag is in the comment). scorecard-action is a Docker
+      # action whose action.yaml names its image by tag, which the commit pin does not cover.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+          # The default token reads rulesets, not every setting of classic branch protection: for
+          # those, Branch-Protection needs a fine-grained token with Administration: read, passed
+          # here as repo_token (from a repository secret).
+      # The SARIF file, downloadable from the run page for 5 days.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: results.sarif

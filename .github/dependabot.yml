@@ -1,0 +1,15 @@
+# The workflows pin each action to a commit, with its tag in a comment. Dependabot moves both, once
+# a month, in a single pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # A release is proposed only once it is a week old: time for a broken or hijacked one to be
+    # noticed and pulled. Security updates (a repository setting) do not wait.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
