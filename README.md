@@ -129,7 +129,7 @@ sha256. `rizzo devices` shows what the runtime sees and what `--device auto` wil
 | Your machine | Build picked (`--runtime auto`) | Status |
 | --- | --- | --- |
 | Windows or Linux, NVIDIA GPU | `cuda` — CUDA 13 libraries included; needs a recent driver, no toolkit | **tested on Windows 10 + RTX 5060 Ti**: every current number in this README. Linux not tried |
-| Windows or Linux, AMD or Intel GPU | `vulkan` — uses the GPU driver you already have | Community reports cover an AMD Radeon 780M and Intel Iris Xe; see [#11](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/11) and [#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7). The Intel run used Q4_K_M; these reports have not been independently reproduced by the maintainers. |
+| Windows or Linux, AMD or Intel GPU | `vulkan` — uses the GPU driver you already have | Community reports cover an AMD Radeon 780M and Intel Iris Xe; see [#11](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/11) and [#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7). A Linux report also covers a discrete Radeon RX 9070 XT (RDNA4, RADV gfx1201) with our fine-tuned 4B Q8_0 over Vulkan ([#23](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/23)). The Intel run used Q4_K_M; these reports have not been independently reproduced by the maintainers. ROCm remains untested. |
 | Mac, Apple Silicon | `metal` | A community report covers an M3 Pro; see [#5](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/5). The run has not been independently reproduced by the maintainers. The two fixes it needed (context freed before exit, a warning when an x86_64 Python under Rosetta hides the GPU) are merged ([#4](https://github.com/Rizzo-AI-Academy/rizzo-flow/pull/4)), and so is `--device metal` on M4 ([#9](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/9)). |
 | No GPU | `vulkan` falls back to the CPU; or `--runtime cpu` | CPU mode was reported on an Intel laptop with an iGPU ([#7](https://github.com/Rizzo-AI-Academy/rizzo-flow/issues/7)); a GPU-free host has not been tested. |
 
@@ -643,7 +643,7 @@ did not change with the runtime: llama.cpp receives byte-identical prompts and t
 - Residual position bias; permutation debiasing is not implemented.
 - 26 options per question (Jev: 255; SemIf: 16). Beyond that you need two stages.
 - **Tested by us on one machine.** Only Windows + NVIDIA (CUDA and Vulkan builds) has been run
-  by us. Community reports cover macOS/Metal (M3 Pro), AMD and Intel iGPUs with Vulkan on Linux
+  by us. Community reports cover macOS/Metal (M3 Pro), AMD GPUs and Intel iGPUs with Vulkan on Linux
   and Windows, and CPU-only on an Intel laptop (see the hardware table); ROCm, SYCL and a
   GPU-free machine are untested.
 - llama.cpp is driven through ctypes bindings tied to one pinned release (`b11081`): a build of
