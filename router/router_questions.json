@@ -1,0 +1,29 @@
+{
+  "complexity": {
+    "type": "score",
+    "instructions": "According to the user request in the evidence, how complex is the work needed to answer it well?",
+    "levels": [
+      "Trivial: a quick lookup, a definition, a one-line answer, reformatting or translating short text, or a tiny script of a few lines.",
+      "Standard: writing or debugging ordinary code in one file, a simple refactor, explaining a technical concept, or a normal technical document.",
+      "Complex: system or software architecture, changes across many files, non-trivial algorithms or mathematics, deep multi-step reasoning, or analysis of a large system."
+    ],
+    "policy": {"allow_abstain": false}
+  },
+  "target_model": {
+    "type": "choice",
+    "instructions": "According to the user request in the evidence, which assistant tier is the best fit to answer it?",
+    "options": [
+      {"id": "haiku", "description": "Lightweight tier: formatting, quick questions, short factual answers, short simple scripts, renaming or small text edits."},
+      {"id": "sonnet", "description": "Everyday tier: writing code, debugging, refactoring, technical writing, ordinary daily development tasks."},
+      {"id": "opus_or_thinking", "description": "Heavy-reasoning tier: complex architectures, mathematical or algorithmic problems, system-level analysis, or logically dense requests that need careful step-by-step reasoning."}
+    ],
+    "policy": {"allow_abstain": false}
+  },
+  "needs_local_only": {
+    "type": "boolean",
+    "instructions": "Does the user request in the evidence contain sensitive or private data that should not be sent to a cloud service, such as passwords, API keys or tokens, personal identification numbers, bank or card details, health data, or confidential personal or business records?",
+    "true_description": "Yes. The request itself contains sensitive or private data like credentials, identity numbers, financial, health or confidential records.",
+    "false_description": "No. The request contains no credentials or sensitive personal, financial, health or confidential data.",
+    "policy": {"allow_abstain": false}
+  }
+}
