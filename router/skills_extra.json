@@ -1,0 +1,114 @@
+[
+ {
+  "name": "pdf-viewer:fill-form",
+  "description": "Fill PDF form fields interactively with live visual feedback"
+ },
+ {
+  "name": "pdf-viewer:annotate",
+  "description": "Collaboratively annotate a PDF: propose markup, highlight, review together"
+ },
+ {
+  "name": "pdf-viewer:sign",
+  "description": "Place a signature or initials image on a PDF"
+ },
+ {
+  "name": "anthropic-skills:pdf",
+  "description": "Read, extract text or tables, merge, split, rotate, watermark, create, OCR PDF files"
+ },
+ {
+  "name": "anthropic-skills:docx",
+  "description": "Create, read or edit Word documents (.docx, .dotx), tracked changes"
+ },
+ {
+  "name": "anthropic-skills:xlsx",
+  "description": "Open, edit, create spreadsheets (.xlsx, .csv), formulas, charts, cleaning tabular data"
+ },
+ {
+  "name": "anthropic-skills:pptx",
+  "description": "Create, read or edit PowerPoint presentations (.pptx)"
+ },
+ {
+  "name": "anthropic-skills:docs",
+  "description": "Write shareable documents: reports, proposals, guides, letters, contracts"
+ },
+ {
+  "name": "anthropic-skills:deep-research",
+  "description": "Research a topic across many sources and write a comprehensive report"
+ },
+ {
+  "name": "anthropic-skills:computer-use",
+  "description": "Control desktop apps on the user's computer with screenshots, clicks and typing"
+ },
+ {
+  "name": "anthropic-skills:built-in-browser",
+  "description": "Use the in-app browser pane to read web pages, fill forms, preview dev servers"
+ },
+ {
+  "name": "anthropic-skills:chrome-browser",
+  "description": "Use Claude in Chrome extension to act in the user's real Chrome"
+ },
+ {
+  "name": "anthropic-skills:google-workspace",
+  "description": "Create or edit Google Docs, Sheets, Slides in Google Drive"
+ },
+ {
+  "name": "anthropic-skills:morning",
+  "description": "Render the user's morning brief"
+ },
+ {
+  "name": "chrome-extension-builder:build-extension",
+  "description": "Build a Chrome browser extension (Manifest V3)"
+ },
+ {
+  "name": "chrome-extension-builder:audit-extension",
+  "description": "Audit an existing Chrome extension: security, UX, performance"
+ },
+ {
+  "name": "chrome-extension-builder:release-extension",
+  "description": "Package and publish a Chrome extension to the Web Store"
+ },
+ {
+  "name": "dataviz",
+  "description": "Create charts, graphs, plots, dashboards and data visualizations"
+ },
+ {
+  "name": "artifact-design",
+  "description": "Design and publish HTML artifact pages"
+ },
+ {
+  "name": "update-config",
+  "description": "Configure Claude Code settings.json: hooks, permissions, env vars"
+ },
+ {
+  "name": "code-review",
+  "description": "Review a diff or pull request for bugs"
+ },
+ {
+  "name": "security-review",
+  "description": "Security review of pending changes"
+ },
+ {
+  "name": "simplify",
+  "description": "Simplify and clean up changed code"
+ },
+ {
+  "name": "schedule",
+  "description": "Schedule recurring cloud agents with cron"
+ },
+ {
+  "name": "loop",
+  "description": "Run a prompt repeatedly on an interval"
+ },
+ {
+  "name": "claude-api",
+  "description": "Claude API, Anthropic SDK, model ids, pricing, tool use, caching"
+ },
+ {
+  "name": "keybindings-help",
+  "description": "Customize Claude Code keyboard shortcuts"
+ },
+ {
+  "name": "run",
+  "description": "Launch the project's app to see a change working"
+ }
+]
