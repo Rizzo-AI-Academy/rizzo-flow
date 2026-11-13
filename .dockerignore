@@ -1,0 +1,25 @@
+# Build context for the image: the source of this checkout plus the entrypoint.
+# Everything else the container never reads — the heavy things (weights, runtime) are
+# downloaded into the ./data volume at first start, not baked in.
+.git
+.gitignore
+.venv
+data/
+results/
+docs/
+benchmarks/
+tests/
+training/
+scripts/
+skills/
+assets/
+.claude/
+.env
+.env.example
+*.md
+Makefile
+docker-compose*.yml
+request.schema.json
+response.schema.json
+__pycache__/
+*.pyc

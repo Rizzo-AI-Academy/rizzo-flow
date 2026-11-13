@@ -228,3 +228,6 @@ runtimes/
 # both are covered — with one, only directories match and local reports leak into commits.
 results/local-*
 .DS_Store
+
+data/
+.env
