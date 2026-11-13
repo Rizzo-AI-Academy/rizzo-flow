@@ -193,6 +193,57 @@ on MLX-CUDA the 4B matches llama.cpp BF16 within 0.001); `--weights base` loads 
 original checkpoint.
 </details>
 
+### Docker (or Podman), no Python on the host
+
+`Dockerfile`, `docker-compose.yml` and a small `Makefile` run the same API in a container. The
+image is built **from this checkout** — there is no commit to pin — and carries only Python and
+the source: the llama.cpp build and the GGUF are downloaded into a `./data` volume on first
+start, so the image stays at ~460 MB and the weights survive `down`, rebuilds and
+`docker image prune`.
+
+```bash
+cp .env.example .env     # optional: every value has a working default
+make up                  # build + start on http://127.0.0.1:8017/playground
+make logs                # the first start downloads the runtime and the weights
+```
+
+`make` uses `docker compose` when docker is installed and `podman compose` otherwise; override
+with `make COMPOSE="podman compose"`. Targets: `build`, `up`, `gpu`, `cuda`, `down`, `stop`,
+`restart`, `logs`, `ps`, `shell`, `health`, `update` (rebuild from the current checkout and
+restart), `clean` (also deletes `./data`); `make help` lists them.
+
+| | |
+| --- | --- |
+| CPU (default) | `docker-compose.yml` alone: `RIZZO_RUNTIME=cpu`, `RIZZO_DEVICE=cpu`, no device passthrough. |
+| AMD or Intel GPU | `make gpu`: adds `docker-compose.gpu.yml` — `/dev/dri` and the `vulkan` llama.cpp build (Mesa is already in the image). |
+| NVIDIA GPU | `make cuda`: adds `docker-compose.cuda.yml` — the `cuda` build (its CUDA 13 runtime comes with it) and `deploy.resources.reservations.devices`. Needs the NVIDIA container toolkit; on podman a CDI file (`nvidia-ctk cdi generate`). |
+| Reachability | `127.0.0.1:8017` only, unless `RIZZO_HOST=0.0.0.0`; Bearer auth on the Jev endpoints with `RIZZO_API_KEY`. |
+| Model | `RIZZO_SIZE` (4b/1.7b), `RIZZO_QUANT` (q8_0/q4_k_m/bf16), `RIZZO_WEIGHTS` (flow/base) in `.env`; the first start downloads only the combination selected. |
+| Memory | the model lives in the container: 5.6 GiB on the GPU with 4B Q8_0, the file size (~1.1 GiB for 1.7B Q4_K_M) on the CPU path, which is exactly as slow as `rizzo serve` on bare metal. |
+
+Opening `/dev/dri` needs the host's render group: rootless podman passes the caller's groups
+through (`group_add: keep-groups`, the default), docker wants `RIZZO_GROUP_ADD=<gid>` in `.env`
+(`getent group render`).
+
+One-off commands skip the server and reuse the same `./data`:
+
+```bash
+docker compose run --rm rizzo rizzo devices
+docker compose run --rm rizzo rizzo decide --size 1.7b --quant q4_k_m /app/examples/ticket.json
+```
+
+The CLI flags are not read from `.env` in that case: `RIZZO_*` configures the server started by
+the entrypoint, while a command you pass replaces it (`/app/examples/` holds copies of
+`examples/`, and the container works in `/data`).
+
+Two caveats. **MLX is not in the image**: it is an optional extra tied to one machine's GPU, and
+llama.cpp covers CPU, Vulkan and CUDA. And the numbers: only the CPU path was exercised here
+(Linux, podman 6.2, six cores — `examples/ticket.json` on 1.7B Q4_K_M: 7.4 s for its four
+questions, 1.9 s for the single `noul` call of the Jev-compatible endpoint, model load 4.4 s);
+the two GPU overlays are written but not run on this machine, so treat them as untested until
+they work on yours. Write down your own timings before comparing them with the tables below,
+which come from a GPU.
+
 ---
 
 ## Training and calibration

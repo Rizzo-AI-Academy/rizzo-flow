@@ -1,0 +1,20 @@
+# Overlay: AMD or Intel GPU through Vulkan (also works for NVIDIA cards whose driver ships a
+# Vulkan ICD, but prefer docker-compose.cuda.yml there).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#   make gpu
+#
+# The image already contains libvulkan1 and Mesa; the container only needs the host's GPU
+# nodes and permission to open them.
+services:
+  rizzo:
+    environment:
+      RIZZO_RUNTIME: vulkan
+      RIZZO_DEVICE: "${RIZZO_DEVICE:-auto}"
+    devices:
+      - /dev/dri:/dev/dri
+    # Opening /dev/dri/renderD* needs the host's render group. `keep-groups` (podman rootless)
+    # passes the caller's supplementary groups through; with docker set RIZZO_GROUP_ADD to the
+    # numeric GID of `render` (`getent group render`) in .env.
+    group_add:
+      - "${RIZZO_GROUP_ADD:-keep-groups}"

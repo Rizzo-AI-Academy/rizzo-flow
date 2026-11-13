@@ -48,6 +48,21 @@ RIZZO_REAL=1 .venv/bin/pytest -q -m integration   # 6 test con runtime e GGUF re
 .venv/bin/python scripts/record_demo.py           # ri-registra l'oggetto DEMO di docs/index.html
 ```
 
+Docker/Podman (l'immagine si costruisce da questo checkout, niente RIZZO_COMMIT; runtime e pesi
+finiscono nel volume `./data` al primo avvio):
+
+```bash
+cp .env.example .env                              # opzionale, ogni valore ha un default
+make up                                           # build + serve CPU su 127.0.0.1:8017
+make gpu                                          # overlay Vulkan (/dev/dri), make cuda per NVIDIA
+make logs / health / shell / down / clean         # gestione; make help per la lista completa
+```
+
+`Makefile` usa `docker compose` se c'è docker, altrimenti `podman compose` (`COMPOSE=...` per
+forzare). Il compose legge `.env`; i comandi una tantum non traducono `RIZZO_*` in flag:
+`docker compose run --rm rizzo rizzo decide --size 1.7b --quant q4_k_m /app/examples/ticket.json`.
+In `.dockerignore`/`.gitignore` stanno `data/` e `.env`.
+
 `.claude/launch.json` definisce il server di anteprima `rizzo-q8` (porta 8017, `rizzo serve`).
 Caricare il modello con llama.cpp richiede ~11 s (di cui l'hash sha256 del GGUF) e ~5.6 GiB di GPU
 (Q8_0) o ~9.3 GiB (BF16): **un solo processo con pesi alla volta**, e fermare il server prima di

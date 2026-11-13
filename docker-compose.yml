@@ -1,0 +1,58 @@
+# Rizzo Flow API — base service, CPU only. Works anywhere, no device passthrough.
+#
+#   docker compose up -d                 # CPU (default)
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d    # AMD/Intel GPU
+#   docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d   # NVIDIA GPU
+#
+# or `make up` / `make gpu` / `make cuda`, which also pick the right command for podman.
+# Every setting below can be changed in a .env file next to this one (copy .env.example).
+#
+# No RIZZO_COMMIT: the image is built from this checkout, and the llama.cpp binaries and the
+# GGUF are downloaded into the ./data volume on first start.
+name: rizzo-flow
+
+services:
+  rizzo:
+    build:
+      context: .
+    image: rizzo-flow:local
+    container_name: rizzo-flow
+    restart: unless-stopped
+    init: true
+    environment:
+      RIZZO_SIZE: "${RIZZO_SIZE:-4b}"
+      RIZZO_QUANT: "${RIZZO_QUANT:-q8_0}"
+      RIZZO_WEIGHTS: "${RIZZO_WEIGHTS:-flow}"
+      # CPU here; docker-compose.gpu.yml and docker-compose.cuda.yml override these two.
+      RIZZO_RUNTIME: "${RIZZO_RUNTIME:-cpu}"
+      RIZZO_DEVICE: "${RIZZO_DEVICE:-cpu}"
+      RIZZO_CTX: "${RIZZO_CTX:-8192}"
+      RIZZO_BATCH_SIZE: "${RIZZO_BATCH_SIZE:-4}"
+      RIZZO_THREADS: "${RIZZO_THREADS:-}"
+      RIZZO_KV_TYPE: "${RIZZO_KV_TYPE:-}"
+      RIZZO_CALIBRATION: "${RIZZO_CALIBRATION:-}"
+      RIZZO_API_KEY: "${RIZZO_API_KEY:-}"
+      # Only for gated Hugging Face repositories; the pinned files are public.
+      HF_TOKEN: "${HF_TOKEN:-}"
+      HF_HOME: "/data/hf"
+    ports:
+      # Loopback by default: nothing outside this machine can reach the API.
+      # RIZZO_HOST=0.0.0.0 exposes it on the LAN (put something in front of it).
+      - "${RIZZO_HOST:-127.0.0.1}:${RIZZO_PORT:-8017}:8017"
+    volumes:
+      # models/      the GGUF, 1.1–8.2 GB depending on RIZZO_SIZE and RIZZO_QUANT
+      # runtimes/    the llama.cpp build for this machine
+      # hf/          Hugging Face cache
+      - ./data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8017/health', timeout=3)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Generous: the first start also downloads the runtime and the weights.
+      start_period: 1800s
+    stop_grace_period: 30s

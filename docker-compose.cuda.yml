@@ -1,0 +1,25 @@
+# Overlay: NVIDIA GPU through CUDA. The llama.cpp CUDA build ships its own CUDA 13 runtime
+# (downloaded into ./data/runtimes on first start); only the host driver is needed, injected by
+# the NVIDIA container toolkit. `rizzo download --runtime cuda` is ~570 MB.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.cuda.yml up -d
+#   make cuda
+#
+# docker: install nvidia-container-toolkit and restart the daemon.
+# podman: `sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml` once, then either
+#   `podman run --device nvidia.com/gpu=all ...` or a compose provider that understands the
+#   `deploy.resources.reservations.devices` block below.
+services:
+  rizzo:
+    environment:
+      RIZZO_RUNTIME: cuda
+      RIZZO_DEVICE: "${RIZZO_DEVICE:-auto}"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
